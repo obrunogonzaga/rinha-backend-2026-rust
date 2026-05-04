@@ -1,0 +1,18 @@
+target/
+.DS_Store
+.firecrawl/
+
+# Generated preprocessing outputs.
+data/
+
+# Local benchmark outputs.
+results.json
+
+
+
+# Added by cargo
+
+/target
+
+# added by agent-md installer
+.agent/

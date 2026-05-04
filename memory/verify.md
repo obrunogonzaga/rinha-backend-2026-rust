@@ -1,0 +1,66 @@
+# Definition of Done
+
+Every task's verification criteria must pass before it is marked complete
+in `progress.md`. No exceptions.
+
+## Text Verification (always required)
+
+- [ ] `cargo check --locked`
+- [ ] `cargo fmt --check`
+- [ ] `cargo clippy --locked --all-targets --all-features -- -D warnings`
+- [ ] `cargo test --locked`
+
+## Tactile Verification (when code executes)
+
+- [ ] Code was actually run — not just written. Script ran, endpoint
+  responded, CLI output observed.
+- [ ] Logs checked — no unexpected errors, warnings, or deprecations.
+- [ ] At least one happy path and one edge case exercised manually.
+
+## Visual Verification (UI changes only)
+
+- [ ] Screenshot captured via Playwright (`.agent-md/bin/playwright-capture.sh`)
+- [ ] VLM or human review confirms visual intent matches the spec
+- [ ] No self-grading ("the code looks right") — independent verification
+
+## Independent Verification
+
+- [ ] Not self-graded. One of: sub-agent review, test suite, or the human
+  confirmed.
+
+## Structured Output / Tool Verification
+
+- [ ] Tool arguments and structured outputs were validated before use
+  (required fields, types, enum values, and file paths).
+- [ ] Tool failures used structured error information where available:
+  `status`, `type`, `message`, `suggestion`.
+- [ ] High-risk claims or changes had an adversarial or independent check.
+
+## Task-Specific Criteria
+
+### Slice 1: HTTP contract baseline
+- [ ] Service listens on `localhost:9999`.
+- [ ] `GET /ready` returns `HTTP 2xx`.
+- [ ] `POST /fraud-score` returns `HTTP 200` with JSON fields
+  `approved: boolean` and `fraud_score: number`.
+- [ ] `k6 run test/smoke.js` passes while the service is running.
+
+### Slice 2: Vectorization and deterministic scoring fixtures
+- [ ] The 14 vector dimensions match the examples in
+  `official/docs/br/REGRAS_DE_DETECCAO.md`.
+- [ ] `last_transaction: null` maps dimensions 5 and 6 to `-1`.
+- [ ] `approved` uses `fraud_score < 0.6`.
+
+### Slice 3: Reference search
+- [ ] `resources/references.json.gz` is loaded or preprocessed without using
+  `test/test-data.json` as a lookup source.
+- [ ] A bounded `k6 run test/test.js` or documented smaller equivalent produces
+  `test/results.json`.
+- [ ] Result inspection includes p99, HTTP errors, FP, FN, and final score.
+
+### Slice 4: Submission topology
+- [ ] `docker-compose.yml` exposes only the load balancer on port `9999`.
+- [ ] At least two API instances receive traffic through round-robin.
+- [ ] Total declared limits across services are no more than `1 CPU` and
+  `350 MB`.
+- [ ] Compose run passes `GET /ready` and `k6 run test/smoke.js`.
