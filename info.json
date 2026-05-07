@@ -1,0 +1,10 @@
+{
+  "participants": ["Bruno Gonzaga Santos"],
+  "social": [
+    "https://github.com/obrunogonzaga",
+    "https://www.linkedin.com/in/brunogsantos/"
+  ],
+  "source-code-repo": "https://github.com/obrunogonzaga/rinha-backend-2026-rust",
+  "stack": ["rust", "axum", "nginx"],
+  "open_to_work": false
+}
