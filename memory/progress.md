@@ -8,9 +8,29 @@ changed but this file wasn't updated.
 
 ## In Progress
 
-- [ ] Open PR for Slice 1 + setup (this branch -> main).
+- [ ] Open PR for Slice 2a (this branch -> main).
 
 ## Completed (this session)
+
+- [x] Slice 2a — `Payload` deserialization model in `src/vector.rs`.
+- [x] Slice 2a — pure `vectorize(&Payload) -> [f32; 14]` matching the 14
+  dimensions in `REGRAS_DE_DETECCAO.md`.
+- [x] Slice 2a — manual ISO-8601 UTC parser (`YYYY-MM-DDTHH:MM:SSZ`),
+  Sakamoto weekday (seg=0…dom=6), Hinnant `days_from_civil` for minute
+  diffs.
+- [x] Slice 2a — `mcc_risk` table (10 entries) + 0.5 default; constants
+  hardcoded, no JSON load at runtime.
+- [x] Slice 2a — 10 unit tests pass: legit + fraud doc fixtures
+  byte-equal at 4dp, `-1` sentinel at idx 5/6, clamp ceiling, mcc
+  unknown/known, set-membership for known_merchants, weekday for
+  known dates, parse_u32, with-last-tx minutes/km computation.
+- [x] Slice 2a — `POST /fraud-score` now deserializes the full payload
+  via serde and runs `vectorize` (response still placeholder per Slice 3
+  scope). Malformed payload returns `422`.
+- [x] Slice 2a — `cargo check/fmt/clippy/test` all green; `k6 run
+  test/smoke.js` 5/5, p95 220µs, 0 HTTP failures.
+
+## Completed (previous sessions)
 
 - [x] Configure `agent-md.toml`.
 - [x] Enable Codex hooks in `~/.codex/config.toml`.
@@ -39,7 +59,6 @@ changed but this file wasn't updated.
 
 ## Backlog (next up)
 
-- [ ] Slice 2a — vectorization with official fixtures.
 - [ ] Slice 2b — preprocessor binary streaming `references.json.gz` to `i16`
   binary.
 - [ ] Slice 3 — brute-force SIMD search.

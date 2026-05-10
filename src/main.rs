@@ -1,9 +1,12 @@
+mod vector;
+
 use axum::{
     Json, Router,
     http::StatusCode,
     routing::{get, post},
 };
 use serde::Serialize;
+use vector::{Payload, vectorize};
 
 #[derive(Serialize)]
 struct ReadyResponse {
@@ -20,7 +23,8 @@ async fn ready() -> Json<ReadyResponse> {
     Json(ReadyResponse { ready: true })
 }
 
-async fn fraud_score(_: Json<serde_json::Value>) -> (StatusCode, Json<FraudScoreResponse>) {
+async fn fraud_score(Json(payload): Json<Payload>) -> (StatusCode, Json<FraudScoreResponse>) {
+    let _ = vectorize(&payload);
     (
         StatusCode::OK,
         Json(FraudScoreResponse {
@@ -68,13 +72,22 @@ mod tests {
         assert_eq!(v["ready"], serde_json::Value::Bool(true));
     }
 
+    const VALID_PAYLOAD: &str = r#"{
+        "id": "tx-1329056812",
+        "transaction": { "amount": 41.12, "installments": 2, "requested_at": "2026-03-11T18:45:53Z" },
+        "customer": { "avg_amount": 82.24, "tx_count_24h": 3, "known_merchants": ["MERC-016"] },
+        "merchant": { "id": "MERC-016", "mcc": "5411", "avg_amount": 60.25 },
+        "terminal": { "is_online": false, "card_present": true, "km_from_home": 29.23 },
+        "last_transaction": null
+    }"#;
+
     #[tokio::test]
     async fn fraud_score_returns_ok_with_required_fields() {
         let req = Request::builder()
             .method(Method::POST)
             .uri("/fraud-score")
             .header("content-type", "application/json")
-            .body(Body::from(r#"{"id":"tx-1"}"#))
+            .body(Body::from(VALID_PAYLOAD))
             .unwrap();
         let resp = router().oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);

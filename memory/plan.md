@@ -5,7 +5,7 @@ only — build full-stack features end-to-end, not horizontal layers.
 
 ## Current Phase
 
-Phase 1: Slice 1 — HTTP contract baseline.
+Phase 2a: Vectorization — done. Next is Slice 2b (preprocessor binary).
 
 ## Closed Decisions
 
