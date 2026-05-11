@@ -1,12 +1,24 @@
+mod index;
 mod vector;
+
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use axum::{
     Json, Router,
+    extract::State,
     http::StatusCode,
     routing::{get, post},
 };
 use serde::Serialize;
+
+use index::Index;
 use vector::{Payload, vectorize};
+
+#[derive(Clone)]
+struct AppState {
+    index: Arc<Index>,
+}
 
 #[derive(Serialize)]
 struct ReadyResponse {
@@ -23,29 +35,47 @@ async fn ready() -> Json<ReadyResponse> {
     Json(ReadyResponse { ready: true })
 }
 
-async fn fraud_score(Json(payload): Json<Payload>) -> (StatusCode, Json<FraudScoreResponse>) {
-    let _ = vectorize(&payload);
+async fn fraud_score(
+    State(state): State<AppState>,
+    Json(payload): Json<Payload>,
+) -> (StatusCode, Json<FraudScoreResponse>) {
+    let q = vectorize(&payload);
+    let d = state.index.score(&q);
     (
         StatusCode::OK,
         Json(FraudScoreResponse {
-            approved: true,
-            fraud_score: 0.0,
+            approved: d.approved,
+            fraud_score: d.fraud_score,
         }),
     )
 }
 
-fn router() -> Router {
+fn router(state: AppState) -> Router {
     Router::new()
         .route("/ready", get(ready))
         .route("/fraud-score", post(fraud_score))
+        .with_state(state)
 }
 
 #[tokio::main]
 async fn main() {
+    let data_dir: PathBuf = std::env::var("REFS_DATA_DIR")
+        .unwrap_or_else(|_| "data".to_string())
+        .into();
+    let index = Index::load(&data_dir).expect("load index");
+    eprintln!(
+        "index loaded: count={} dir={}",
+        index.count(),
+        data_dir.display()
+    );
+    let state = AppState {
+        index: Arc::new(index),
+    };
+
     let listener = tokio::net::TcpListener::bind("0.0.0.0:9999")
         .await
         .expect("bind 0.0.0.0:9999");
-    axum::serve(listener, router()).await.expect("serve");
+    axum::serve(listener, router(state)).await.expect("serve");
 }
 
 #[cfg(test)]
@@ -53,11 +83,21 @@ mod tests {
     use super::*;
     use axum::body::{Body, to_bytes};
     use axum::http::{Method, Request};
+    use index::{DIMS, LABEL_FRAUD, LABEL_LEGIT};
     use tower::ServiceExt;
+
+    fn test_state(labels: Vec<u8>) -> AppState {
+        let refs = vec![0i16; labels.len() * DIMS].into_boxed_slice();
+        let index = Index::from_parts(refs, labels.into_boxed_slice()).unwrap();
+        AppState {
+            index: Arc::new(index),
+        }
+    }
 
     #[tokio::test]
     async fn ready_returns_ok_with_ready_true() {
-        let resp = router()
+        let state = test_state(vec![LABEL_LEGIT; 5]);
+        let resp = router(state)
             .oneshot(
                 Request::builder()
                     .uri("/ready")
@@ -81,25 +121,47 @@ mod tests {
         "last_transaction": null
     }"#;
 
-    #[tokio::test]
-    async fn fraud_score_returns_ok_with_required_fields() {
+    async fn post_fraud_score(state: AppState) -> serde_json::Value {
         let req = Request::builder()
             .method(Method::POST)
             .uri("/fraud-score")
             .header("content-type", "application/json")
             .body(Body::from(VALID_PAYLOAD))
             .unwrap();
-        let resp = router().oneshot(req).await.unwrap();
+        let resp = router(state).oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let bytes = to_bytes(resp.into_body(), 1024).await.unwrap();
-        let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-        assert!(
-            v["approved"].as_bool().is_some(),
-            "approved must be boolean"
-        );
-        assert!(
-            v["fraud_score"].as_f64().is_some(),
-            "fraud_score must be number"
-        );
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[tokio::test]
+    async fn fraud_score_all_legit_neighbors_approves() {
+        let state = test_state(vec![LABEL_LEGIT; 5]);
+        let v = post_fraud_score(state).await;
+        assert_eq!(v["approved"], serde_json::Value::Bool(true));
+        assert_eq!(v["fraud_score"].as_f64().unwrap(), 0.0);
+    }
+
+    #[tokio::test]
+    async fn fraud_score_all_fraud_neighbors_rejects() {
+        let state = test_state(vec![LABEL_FRAUD; 5]);
+        let v = post_fraud_score(state).await;
+        assert_eq!(v["approved"], serde_json::Value::Bool(false));
+        assert_eq!(v["fraud_score"].as_f64().unwrap(), 1.0);
+    }
+
+    #[tokio::test]
+    async fn fraud_score_threshold_is_strictly_less_than_0_6() {
+        // 3 fraud / 5 = 0.6 → not approved (strict <).
+        let state = test_state(vec![
+            LABEL_FRAUD,
+            LABEL_FRAUD,
+            LABEL_FRAUD,
+            LABEL_LEGIT,
+            LABEL_LEGIT,
+        ]);
+        let v = post_fraud_score(state).await;
+        assert_eq!(v["approved"], serde_json::Value::Bool(false));
+        assert!((v["fraud_score"].as_f64().unwrap() - 0.6).abs() < 1e-6);
     }
 }
