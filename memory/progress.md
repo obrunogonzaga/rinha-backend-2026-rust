@@ -8,26 +8,31 @@ changed but this file wasn't updated.
 
 ## In Progress
 
-- [x] Slice 2b — `preprocess` bin: stream `resources/references.json.gz`,
-  quantize 14-dim `f32` vectors to `i16` (scale 10000), emit
-  `data/refs.i16.bin` + `data/labels.bin` + `data/metadata.json`.
-- [x] Slice 2b — roundtrip unit test: `i16/scale → f32` error ≤ 1/scale.
-- [x] Slice 2b — re-run produces byte-identical `refs.i16.bin` /
-  `labels.bin` (SHA-256 stable across runs).
-- [x] Slice 2b — full run on `resources/references.json.gz`:
-  - `count=3_000_000`, `dims=14`, `scale=10000`.
-  - Labels: 2_000_594 legit / 999_406 fraud (≈33.3% fraud).
-  - `refs.i16.bin` = 84 000 000 B
-    `sha256 d5beb0640d8a35657d206e2cdd372cf7b74591be23d44253b85ca7dcac337461`.
-  - `labels.bin` = 3 000 000 B
-    `sha256 aecc5d8a6258f66f5d55ba0973146f0cd3ef40ba09a2d06b298bab12ac9eb920`.
-  - Wall clock: ~1.83 s on the dev box, single thread, release build.
-  - **TODO (outside-repo)**: copy these numbers to vault
-    `09-baseline-medicoes.md`.
-- [ ] Open PR for Slice 2b (this branch -> main).
+- [x] Slice 3 — `src/index.rs`: mmap loader for `data/refs.i16.bin` +
+  `data/labels.bin`, quantize_query, brute-force top-K scan with stack
+  array (no per-request alloc), Decision { approved, fraud_score }.
+- [x] Slice 3 — wired `Index` into axum `AppState` (Arc<Index>) and
+  updated `/fraud-score` handler to return real decision.
+- [x] Slice 3 — 12 unit tests in `index::tests` (quantize match,
+  sq_dist, arg_max, score thresholds 0.0/0.4/0.6/1.0, top-5 selection
+  with extra refs, from_parts validation). 4 handler tests against
+  synthetic `Index`. Existing vector tests intact. 26/26 green.
+- [x] Slice 3 — live boot against full `data/` (3M refs):
+  - `GET /ready` → 200 `{"ready":true}`.
+  - Doc legit example → `{"approved":true,"fraud_score":0.0}` ✓.
+  - Doc fraud example → `{"approved":false,"fraud_score":1.0}` ✓.
+- [x] Slice 3 — `k6 run test/smoke.js` against live server:
+  - 5/5 iterations OK, 0% HTTP failures.
+  - `http_req_duration`: min=10.02 ms, p50=10.38 ms, p95=18.14 ms,
+    max=20.07 ms.
+  - Single VU, scalar Rust hot loop (compiler auto-vectorized i16
+    distance sum), darwin/arm64.
+  - Baseline before explicit SIMD / `wide` / chunking tweaks.
+- [ ] Open PR for Slice 3 (this branch -> main).
 
 ## Completed (this session)
 
+- [x] PR #3 (Slice 2b) merged into `main` at `3724c46`.
 - [x] PR #2 (Slice 2a) merged into `main` at `b6e605f`.
 - [x] Slice 2a — `Payload` deserialization model in `src/vector.rs`.
 - [x] Slice 2a — pure `vectorize(&Payload) -> [f32; 14]` matching the 14
