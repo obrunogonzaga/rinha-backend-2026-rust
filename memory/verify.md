@@ -67,13 +67,31 @@ in `progress.md`. No exceptions.
 - [ ] Result inspection includes p99, HTTP errors, FP, FN, and final score.
 
 ### Slice 4: Submission topology
+
+Structural (pre-requisites):
 - [ ] `docker-compose.yml` exposes only the load balancer on port `9999`.
 - [ ] At least two API instances receive traffic through round-robin.
-- [ ] Total declared limits across services are no more than `1 CPU` and
-  `350 MB`.
-- [ ] Observed RSS/cgroup memory stays below `350 MB` with two APIs and load
-  balancer during a smoke/load run.
-- [ ] Submission branch DoD is documented before branch work starts: only
-  runtime artifacts, `docker-compose.yml` at root, public `linux-amd64` images,
-  and no source tree required.
-- [ ] Compose run passes `GET /ready` and `k6 run test/smoke.js`.
+- [ ] Total declared limits sum to exactly `1.0 CPU` and `350 MB`
+  (nginx `0.10 / 10MB`, api1/api2 `0.45 / 170MB` each).
+- [ ] `nginx.depends_on` uses `condition: service_healthy` for both APIs.
+- [ ] Image is `linux/amd64`, public on GHCR as `v0.4.0`.
+- [ ] `submission` branch carries only `docker-compose.yml`, `nginx.conf`,
+  `info.json`, `README.md` — no source code.
+
+Tier 1 — Functional gating (local, darwin/arm64):
+- [ ] `docker compose up --wait` returns successfully (i.e., healthchecks
+  pass within `start-period`).
+- [ ] `k6 run test/smoke.js` passes with `http_req_failed: rate==0.0` and
+  `checks: rate==1.0`.
+- [ ] `k6 run test/test.js` runs to completion without a container crashing
+  or compose returning a non-zero exit. RSS per container observed below the
+  configured limit.
+
+Tier 2 — Measurement (closes the slice):
+- [ ] Either: official Engine result obtained via `rinha/test` issue and
+  recorded in vault `09-baseline-medicoes.md` with `final_score`, p99, FP,
+  FN, Err.
+- [ ] Or fallback: linux/amd64 VPS run, recorded with explicit "proxy
+  measurement" annotation in the same vault note.
+- [ ] No minimum score gate. A poor score (cuts triggered) is a valid
+  outcome — it scopes Slice 5+ work but does NOT reopen Slice 4.
