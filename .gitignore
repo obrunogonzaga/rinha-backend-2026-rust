@@ -5,8 +5,8 @@ target/
 # Generated preprocessing outputs.
 data/
 
-# Local benchmark outputs.
-results.json
+# Local k6 run output (canonical path used by test/test.js).
+/test/results.json
 
 # Local-only agent scratchpad and ephemeral worktrees.
 .claude/napkin.md
