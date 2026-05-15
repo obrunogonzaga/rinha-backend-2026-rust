@@ -1,0 +1,35 @@
+{
+  "mem": 350,
+  "cpu": 1,
+  "instances-number-ok?": true,
+  "unlimited-services": null,
+  "commit": "fb90b82",
+  "images": {
+    "nginx:1.27-alpine": [
+      {
+        "Service": "nginx",
+        "Memory": 10485760,
+        "NanoCpus": 100000000,
+        "PortBindings": { "tcp": [{ "HostPort": "9999" }] },
+        "Privileged": false,
+        "NetworkMode": "submission_default"
+      }
+    ],
+    "ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.4.0": [
+      {
+        "Service": "api1",
+        "Memory": 178257920,
+        "NanoCpus": 450000000,
+        "Privileged": false,
+        "NetworkMode": "submission_default"
+      },
+      {
+        "Service": "api2",
+        "Memory": 178257920,
+        "NanoCpus": 450000000,
+        "Privileged": false,
+        "NetworkMode": "submission_default"
+      }
+    ]
+  }
+}

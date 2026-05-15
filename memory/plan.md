@@ -5,14 +5,19 @@ only — build full-stack features end-to-end, not horizontal layers.
 
 ## Current Phase
 
-Phase 3: Reference search — done (PR #4 merged into `main` at `63b9f34`).
-Next is Slice 4 (multi-stage Dockerfile + compose + GHCR push).
+Slice 4: Submission topology — done. First official Engine measurement
+captured (final_score=-6000, both cuts; FP=0, FN=0). Next is Slice 5:
+escape the -6000 floor (failure_rate < 15% first, then p99 < 2000 ms).
+Deadline for final submission: 2026-06-05T23:59:59-03:00.
 
 Completion stamps:
 - Slice 1 (HTTP baseline) — PR #1 merged at `f815dff`.
 - Slice 2a (vectorization) — PR #2 merged at `b6e605f`.
 - Slice 2b (preprocess) — PR #3 merged at `3724c46`.
 - Slice 3 (brute-force search) — PR #4 merged at `63b9f34`.
+- Slice 4 (submission topology) — PRs #7/#8/#9 merged; GHCR `v0.4.0`;
+  submission `fb90b82`; Engine prévia issue #4586 → `final_score=-6000`.
+  Artifacts: `bench/slice-4/20260515-203342-engine-fb90b82/`.
 
 ## Closed Decisions
 

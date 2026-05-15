@@ -1,0 +1,29 @@
+{
+  "slice": 4,
+  "kind": "official-engine-previa",
+  "timestamp_utc": "2026-05-15T20:33:42Z",
+  "source": {
+    "issue": "https://github.com/zanfranceschi/rinha-de-backend-2026/issues/4586",
+    "participant_pr": "https://github.com/zanfranceschi/rinha-de-backend-2026/pull/4583",
+    "engine_comment_author": "arinhadebackend"
+  },
+  "git": {
+    "submission_sha": "fb90b82",
+    "main_sha_at_test": "3c18c28",
+    "image": "ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.4.0"
+  },
+  "host": {
+    "machine": "Mac Mini Late 2014",
+    "cpu_brand": "Intel Core i5-4278U (Haswell, 2c/4t, 2.6 GHz / 3.1 GHz turbo)",
+    "mem": "8 GB",
+    "os": "Ubuntu 24.04",
+    "constraint": "official 1.0 CPU / 350 MB total, bridge, non-privileged"
+  },
+  "topology": {
+    "nginx": { "cpu": 0.10, "mem_mb": 10 },
+    "api1": { "cpu": 0.45, "mem_mb": 170 },
+    "api2": { "cpu": 0.45, "mem_mb": 170 }
+  },
+  "algorithm": "brute-force exact kNN (k=5) over 3,000,000 i16 vectors, auto-vectorized scalar loop, target-cpu=x86-64-v3",
+  "headline": "final_score=-6000 (both cuts). p99=2002.11ms, failure_rate=89.13%, FP=0, FN=0, http_errors=12689. Classification correct when it answers; throughput-bound under 1 CPU."
+}
