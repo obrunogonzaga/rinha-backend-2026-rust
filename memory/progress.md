@@ -8,7 +8,9 @@ changed but this file wasn't updated.
 
 ## In Progress
 
-_(empty — Slice 3 closed in PR #4. Next vertical slice is Slice 4.)_
+_(empty — Slice 4 closed. First official Engine measurement captured:
+final_score=-6000, p99=2002ms, failure_rate=89%, FP=0, FN=0. Next vertical
+slice is Slice 5: escape the floor — see bench/slice-4/.../ANALYSIS.md.)_
 
 ## Backlog (next up)
 
@@ -50,26 +52,24 @@ Main branch (PR `feat/slice-4-topology`):
 - [x] Slice 4.7 — `bench/slice-3/...` already tracked (commit `994395a` in
   Slice 3 baseline session). Grilling decision (track, not ignore) formalized
   retroactively. No further action.
-- [ ] Slice 4.8 — Open PR `feat/slice-4-topology`; merge after green CI.
-
-Post-merge, manual on dev box:
-- [ ] Slice 4.9 — `docker buildx build --platform linux/amd64 -t
-  ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.4.0 . --push` against GHCR.
-- [ ] Slice 4.10 — `submission` branch: update `docker-compose.yml` (tag
-  `:v0.4.0`; budget split `nginx 0.10/10MB`, `api1/api2 0.45/170MB`; env vars
-  `TOKIO_WORKER_THREADS=1`, `MALLOC_ARENA_MAX=2`, `REFS_DATA_DIR=/data`;
-  `nginx.depends_on` with `condition: service_healthy` for api1/api2).
-- [ ] Slice 4.11 — `submission` branch: update `nginx.conf` per Slice 4
-  decision (worker_processes 1, use epoll, access_log off, server_tokens off,
-  keepalive 32 in upstream).
-- [ ] Slice 4.12 — DoD functional: run `docker compose up --wait` against the
-  GHCR image on darwin/arm64 emulation; smoke + test.js completion.
-
-External / measurement (closes the slice):
-- [ ] Slice 4.13 — DoD measurement: open `rinha/test` issue against the
-  official Rinha repo; record Engine result (`final_score`, p99, FP, FN, Err)
-  in vault `09-baseline-medicoes.md`. Fallback: VPS linux/amd64 (Hetzner/DO),
-  flagged as proxy if Engine unavailable.
+- [x] Slice 4.8 — PR #8 `feat/slice-4-topology` merged (squash `4266d24`).
+- [x] Slice 4.9 — `v0.4.0` pushed to GHCR (amd64, QEMU). Needed hotfix
+  PR #9 (`3c18c28`, `process::exit(0)` to dodge QEMU+AVX2 destructor
+  segfault in preprocess) before the build succeeded.
+- [x] Slice 4.10 — `submission` `docker-compose.yml` updated (`fb90b82`):
+  `:v0.4.0`, split 0.10/10MB + 0.45/170MB×2, env vars, `service_healthy`.
+- [x] Slice 4.11 — `submission` `nginx.conf` updated (`fb90b82`):
+  worker_processes 1, epoll, access_log off, server_tokens off, keepalive 32.
+- [x] Slice 4.12 — Tier 1 via GHCR image: compose `--wait` healthy 6 s,
+  smoke 5/5, test.js 14515 iters, 0 FP/0 FN, no OOM. (QEMU arm64 — not the
+  score, just structural.)
+- [x] Slice 4.13 — DoD measurement DONE. Upstream participant PR #4583
+  merged (`c89739c`); GHCR `v0.4.0` made public (was private by default;
+  follow-up LABEL fix in PR #10 prevents the regression on v0.5.0+).
+  Prévia issue #4586 → Engine on Mac Mini Late 2014:
+  **final_score=-6000** (p99=2002.11ms cut + failure_rate=89.13% cut),
+  FP=0, FN=0, http_errors=12689. Artifacts in
+  `bench/slice-4/20260515-203342-engine-fb90b82/`. **Slice 4 CLOSED.**
 
 ## Completed (this session)
 

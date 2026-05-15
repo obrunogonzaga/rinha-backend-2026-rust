@@ -40,6 +40,8 @@ RUN mkdir -p /out/data \
 
 # --- stage: runtime — distroless/cc, nonroot ---
 FROM gcr.io/distroless/cc-debian12:${DISTROLESS_TAG}
+LABEL org.opencontainers.image.source=https://github.com/obrunogonzaga/rinha-backend-2026-rust
+LABEL org.opencontainers.image.licenses=MIT
 COPY --from=builder /app/target/release/rinha_backend_2026 /app/api
 COPY --from=preprocessor /out/data /data
 ENV REFS_DATA_DIR=/data
