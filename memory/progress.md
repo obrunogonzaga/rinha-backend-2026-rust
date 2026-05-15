@@ -23,8 +23,10 @@ Main branch (PR `feat/slice-4-topology`):
 - [x] Slice 4.2 — `.cargo/config.toml` created with `target-cpu=x86-64-v3`
   scoped to `x86_64-unknown-linux-gnu`. Native arm64 `cargo check`/`test`
   unaffected (35/35 still pass).
-- [ ] Slice 4.3 — Add `[profile.release]` to `Cargo.toml`: `lto = "fat"`,
-  `codegen-units = 1`, `panic = "abort"`, `strip = true`.
+- [x] Slice 4.3 — `[profile.release]` added (`lto=fat`, `codegen-units=1`,
+  `panic=abort`, `strip=true`). Release build 8 s → 17 s on M3 (LTO cost,
+  accepted). Binary: rinha_backend_2026 = 816 KB; preprocess = 409 KB.
+  Doc fixture `tx-1329056812` still returns `approved=true, fraud_score=0.0`.
 - [ ] Slice 4.4 — Multi-stage `Dockerfile` (cargo-chef → cargo build release →
   `cargo run --bin preprocess` → runtime distroless/cc-debian12:nonroot).
   Bakes `data/*.bin` at `/data/`. Sets `HEALTHCHECK` invoking `/app/api
