@@ -45,6 +45,10 @@ _(empty — Slice 3 closed in PR #4. Next vertical slice is Slice 4.)_
   updated; cover-post4 / cover-post4a Excalidraws + PNG exports in vault.
   Post 4 (`rinha-backend-2026-quantizacao-i16`) live in production at
   https://brunogonzaga.dev/artigos/rinha-backend-2026-quantizacao-i16/.
+- [x] Repo housekeeping — `.gitignore` covers `.claude/napkin.md`,
+  `.claude/worktrees/`, and `memory/diagrams/`; `git rm --cached` on
+  napkin so future edits stay local. `git status` is back to clean
+  after this commit.
 
 ## Completed (previous sessions)
 
