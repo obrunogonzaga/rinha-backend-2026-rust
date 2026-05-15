@@ -27,12 +27,15 @@ Main branch (PR `feat/slice-4-topology`):
   `panic=abort`, `strip=true`). Release build 8 s → 17 s on M3 (LTO cost,
   accepted). Binary: rinha_backend_2026 = 816 KB; preprocess = 409 KB.
   Doc fixture `tx-1329056812` still returns `approved=true, fraud_score=0.0`.
-- [ ] Slice 4.4 — Multi-stage `Dockerfile` (cargo-chef → cargo build release →
-  `cargo run --bin preprocess` → runtime distroless/cc-debian12:nonroot).
-  Bakes `data/*.bin` at `/data/`. Sets `HEALTHCHECK` invoking `/app/api
-  --healthcheck`. ADR-0001 cross-reference in comment.
-- [ ] Slice 4.5 — `.dockerignore` (excludes `target/`, `data/`, `bench/`,
-  `test/`, `.claude/`, `memory/`, `official/`, `docs/`, `*.md`).
+- [x] Slice 4.4 — `Dockerfile` written: stages chef → planner → builder →
+  preprocessor → runtime (distroless/cc-debian12:nonroot). `data/*.bin` baked
+  at `/data/`, `HEALTHCHECK` invokes `/app/api --healthcheck` every 2 s with
+  20 s start-period. ADR-0001/ADR-0002 referenced in header. **Live build
+  validation deferred to 4.6** (Docker daemon offline at commit time).
+- [x] Slice 4.5 — `.dockerignore` written. Excludes target/, data/, bench/,
+  test/, agent/harness dirs, docs, *.md, .git/. Keeps Cargo.toml, Cargo.lock,
+  .cargo/, src/, resources/references.json.gz (other resources/*.json files
+  also excluded — they are not loaded at runtime, mcc_risk is a const table).
 - [ ] Slice 4.6 — Local validation: `docker buildx build --platform
   linux/arm64 -t rinha-fraud-rust:local .`; `docker compose up --wait` with
   override pointing to `rinha-fraud-rust:local`; `k6 run test/smoke.js`
