@@ -16,9 +16,10 @@ Slice 4 task order (locked after grilling session 2026-05-15). Each item is
 sized to one bounded execution pass; verify before ticking.
 
 Main branch (PR `feat/slice-4-topology`):
-- [ ] Slice 4.1 — Add `--healthcheck` mode to `src/main.rs` via
-  `std::net::TcpStream` raw HTTP GET to `127.0.0.1:9999/ready`; unit test for
-  exit-code mapping (200 → 0, anything else → 1).
+- [x] Slice 4.1 — `src/healthcheck.rs` with `probe()` + `is_status_200()`;
+  `fn main() -> ExitCode` branches on `--healthcheck`. 9 unit/integration tests
+  (closed port → fail; 200/404/500 → expected exit code). Verified live:
+  exit=0 against running server, exit=1 after kill.
 - [ ] Slice 4.2 — Create `.cargo/config.toml` with
   `[target.x86_64-unknown-linux-gnu] rustflags = ["-C", "target-cpu=x86-64-v3"]`
   (ADR-0002).
