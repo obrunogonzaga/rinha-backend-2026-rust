@@ -40,8 +40,9 @@ Main branch (PR `feat/slice-4-topology`):
   linux/arm64 -t rinha-fraud-rust:local .`; `docker compose up --wait` with
   override pointing to `rinha-fraud-rust:local`; `k6 run test/smoke.js`
   passes; `k6 run test/test.js` completes without compose crash.
-- [ ] Slice 4.7 — Commit `bench/slice-3/...` to repo (decision: track, not
-  ignore).
+- [x] Slice 4.7 — `bench/slice-3/...` already tracked (commit `994395a` in
+  Slice 3 baseline session). Grilling decision (track, not ignore) formalized
+  retroactively. No further action.
 - [ ] Slice 4.8 — Open PR `feat/slice-4-topology`; merge after green CI.
 
 Post-merge, manual on dev box:
