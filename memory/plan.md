@@ -22,8 +22,10 @@ Completion stamps:
   runtime, no startup decompression.
 - Search baseline: brute-force SIMD. Upgrade path: VP-Tree → ANN (HNSW).
 - Load balancer: nginx, round-robin only.
-- Image registry: GHCR at `ghcr.io/obrunogonzaga/rinha-fraud-rust:vMAJOR.MINOR.PATCH`,
-  one tag per slice release.
+- Image registry: GHCR at `ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.{slice}.{patch}`.
+  Slice N publishes `v0.N.0`; in-slice patches bump the patch field. Tags before
+  Slice 4 (v0.1.0..v0.3.x) intentionally do not exist — first published image
+  is Slice 4 (`v0.4.0`).
 - Submission strategy: live `submission` orphan branch, image-per-slice tag.
 - Public repo: `obrunogonzaga/rinha-backend-2026-rust`. License MIT.
 
@@ -49,28 +51,63 @@ Completion stamps:
   bounded.
 
 ### Slice 3: Reference search
-- API: `POST /fraud-score` uses brute-force SIMD over `i16` references.
+- API: `POST /fraud-score` uses brute-force scan over `i16` references with
+  LLVM auto-vectorization (no manual SIMD intrinsics).
 - No allocation per request on the hot path; mmap-friendly file format.
 - Tests: known fixtures vs expected fraud decisions.
 - Verify: smoke + bounded `k6 run test/test.js`; record p99/FP/FN/Err in
   vault `09-baseline-medicoes.md`.
 
 ### Slice 4: Submission topology
-- Multi-stage Dockerfile (preprocess → runtime). Image pushed to GHCR `:v0.1.0`.
-- `docker-compose.yml` on `submission` branch: nginx + api1 + api2.
-- Verify: compose up, `GET /ready` through LB, smoke through LB. Limits ≤ 1
-  CPU and 350 MB total. amd64. Bridge network. Non-privileged.
+- DoD in **two tiers**:
+  - **Functional gating (local).** `docker compose up --wait` on darwin/arm64
+    (native, no QEMU); `k6 run test/smoke.js` passes; `k6 run test/test.js`
+    runs to completion without compose crashing. Proves contract + absence of
+    OOM/crash. NOT a performance signal.
+  - **Measurement (closes the slice).** Open `rinha/test` issue against the
+    official Rinha repo; Engine runs on Mac Mini Late 2014 (i5-4278U), posts
+    `final_score`, p99, FP, FN, Err. Recorded in vault
+    `09-baseline-medicoes.md`. No minimum score threshold; bad score becomes
+    input for Slice 5+, does NOT reopen Slice 4.
+- Pre-requisites (means, not DoD):
+  - Multi-stage Dockerfile via `docker buildx --platform linux/amd64` with
+    `cargo-chef` for dep cache. Preprocess runs in builder stage; runtime
+    stage based on `gcr.io/distroless/cc-debian12:nonroot`. `data/*.bin`
+    baked into the runtime image at `/data/` (no shared volume — see
+    [ADR-0001](../docs/adr/0001-bake-data-in-image.md)).
+  - `.cargo/config.toml` sets `target-cpu=x86-64-v3` for
+    `x86_64-unknown-linux-gnu` only (see
+    [ADR-0002](../docs/adr/0002-target-cpu-x86-64-v3.md)).
+  - `[profile.release]`: `lto = "fat"`, `codegen-units = 1`,
+    `panic = "abort"`, `strip = true`.
+  - `--healthcheck` mode in the main binary using `std::net::TcpStream` + raw
+    HTTP GET against `127.0.0.1:9999/ready`. Dockerfile `HEALTHCHECK` invokes
+    it; compose `nginx.depends_on` uses `condition: service_healthy` on
+    `api1`/`api2`.
+  - Image pushed to GHCR as `v0.4.0` AFTER PR merge.
+  - `submission` branch updated AFTER GHCR push:
+    - `docker-compose.yml`: tag `v0.4.0`; budget split nginx `0.10 / 10MB`,
+      api1/api2 `0.45 / 170MB` each; env vars per API:
+      `TOKIO_WORKER_THREADS=1`, `MALLOC_ARENA_MAX=2`, `REFS_DATA_DIR=/data`.
+    - `nginx.conf`: `worker_processes 1`, `events { use epoll;
+      worker_connections 1024 }`, `access_log off`, `server_tokens off`,
+      `upstream api { keepalive 32 }`.
 
 ## Deferred / Out of Scope
 
-- `u8` quantization, VP-Tree, ANN — only after measured Slice 3 baseline.
-- CI workflow for image build/push — manual pushes are fine until Slice 4.
+- `u8` quantization, VP-Tree, ANN — only after measured Slice 4 baseline.
+- Manual SIMD intrinsics (`std::arch::x86_64::_mm256_*`) — only if auto-vec
+  proves insufficient after measurement.
+- CI workflow for image build/push — manual pushes are fine until Slice 5+.
 - Public PR to the official `participants/obrunogonzaga.json` — only after
   the first complete compose run.
+- `/ready` validation of `metadata.json` (dims/scale literals) — gap inherited
+  from Slice 3. Adds telemetry-style guards; Slice 5+.
+- Shared-volume topology for kernel page-cache deduplication across API
+  containers — revisit only if measurement shows per-container RSS at the
+  170 MB limit (ADR-0001 supersession path).
 
 ## Open Questions
 
-- Whether mmap with shared file across both API containers reduces accounted
-  RSS under cgroup v2 enough to matter — measure during Slice 4.
 - Whether `u8` quantization fits with the `-1` sentinel without losing
   accuracy — investigate during Slice 5+.

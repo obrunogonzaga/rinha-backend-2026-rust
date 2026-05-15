@@ -12,14 +12,50 @@ _(empty — Slice 3 closed in PR #4. Next vertical slice is Slice 4.)_
 
 ## Backlog (next up)
 
-- [ ] Slice 4 — multi-stage Dockerfile (`preprocess` runs in builder, runtime
-  ships binary + `data/*.bin`).
-- [ ] Slice 4 — `docker-compose.yml` with nginx + api1 + api2, limits ≤ 1.5
-  CPU and 350 MB total, bridge network, non-privileged.
-- [ ] Slice 4 — `k6 run test/test.js` against compose; record p99, FP/FN,
-  HTTP errors, RAM per container in `vault 09-baseline-medicoes.md`.
-- [ ] Slice 4 — push image to GHCR as `:v0.4.0`.
-- [ ] Slice 4 — submission branch updated to the GHCR tag.
+Slice 4 task order (locked after grilling session 2026-05-15). Each item is
+sized to one bounded execution pass; verify before ticking.
+
+Main branch (PR `feat/slice-4-topology`):
+- [ ] Slice 4.1 — Add `--healthcheck` mode to `src/main.rs` via
+  `std::net::TcpStream` raw HTTP GET to `127.0.0.1:9999/ready`; unit test for
+  exit-code mapping (200 → 0, anything else → 1).
+- [ ] Slice 4.2 — Create `.cargo/config.toml` with
+  `[target.x86_64-unknown-linux-gnu] rustflags = ["-C", "target-cpu=x86-64-v3"]`
+  (ADR-0002).
+- [ ] Slice 4.3 — Add `[profile.release]` to `Cargo.toml`: `lto = "fat"`,
+  `codegen-units = 1`, `panic = "abort"`, `strip = true`.
+- [ ] Slice 4.4 — Multi-stage `Dockerfile` (cargo-chef → cargo build release →
+  `cargo run --bin preprocess` → runtime distroless/cc-debian12:nonroot).
+  Bakes `data/*.bin` at `/data/`. Sets `HEALTHCHECK` invoking `/app/api
+  --healthcheck`. ADR-0001 cross-reference in comment.
+- [ ] Slice 4.5 — `.dockerignore` (excludes `target/`, `data/`, `bench/`,
+  `test/`, `.claude/`, `memory/`, `official/`, `docs/`, `*.md`).
+- [ ] Slice 4.6 — Local validation: `docker buildx build --platform
+  linux/arm64 -t rinha-fraud-rust:local .`; `docker compose up --wait` with
+  override pointing to `rinha-fraud-rust:local`; `k6 run test/smoke.js`
+  passes; `k6 run test/test.js` completes without compose crash.
+- [ ] Slice 4.7 — Commit `bench/slice-3/...` to repo (decision: track, not
+  ignore).
+- [ ] Slice 4.8 — Open PR `feat/slice-4-topology`; merge after green CI.
+
+Post-merge, manual on dev box:
+- [ ] Slice 4.9 — `docker buildx build --platform linux/amd64 -t
+  ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.4.0 . --push` against GHCR.
+- [ ] Slice 4.10 — `submission` branch: update `docker-compose.yml` (tag
+  `:v0.4.0`; budget split `nginx 0.10/10MB`, `api1/api2 0.45/170MB`; env vars
+  `TOKIO_WORKER_THREADS=1`, `MALLOC_ARENA_MAX=2`, `REFS_DATA_DIR=/data`;
+  `nginx.depends_on` with `condition: service_healthy` for api1/api2).
+- [ ] Slice 4.11 — `submission` branch: update `nginx.conf` per Slice 4
+  decision (worker_processes 1, use epoll, access_log off, server_tokens off,
+  keepalive 32 in upstream).
+- [ ] Slice 4.12 — DoD functional: run `docker compose up --wait` against the
+  GHCR image on darwin/arm64 emulation; smoke + test.js completion.
+
+External / measurement (closes the slice):
+- [ ] Slice 4.13 — DoD measurement: open `rinha/test` issue against the
+  official Rinha repo; record Engine result (`final_score`, p99, FP, FN, Err)
+  in vault `09-baseline-medicoes.md`. Fallback: VPS linux/amd64 (Hetzner/DO),
+  flagged as proxy if Engine unavailable.
 
 ## Completed (this session)
 
