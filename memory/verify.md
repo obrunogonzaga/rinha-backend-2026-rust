@@ -43,6 +43,8 @@ in `progress.md`. No exceptions.
 - [ ] `GET /ready` returns `HTTP 2xx`.
 - [ ] `POST /fraud-score` returns `HTTP 200` with JSON fields
   `approved: boolean` and `fraud_score: number`.
+- [ ] Invalid or degraded `POST /fraud-score` paths return `HTTP 200` with
+  fallback `approved: true` and `fraud_score: 0.0`, not `4xx`/`5xx`.
 - [ ] `k6 run test/smoke.js` passes while the service is running.
 
 ### Slice 2: Vectorization and deterministic scoring fixtures
@@ -54,6 +56,12 @@ in `progress.md`. No exceptions.
 ### Slice 3: Reference search
 - [ ] `resources/references.json.gz` is loaded or preprocessed without using
   `test/test-data.json` as a lookup source.
+- [ ] Docker build path generates binary reference artifacts before runtime;
+  runtime maps read-only artifacts and validates metadata before `/ready`.
+- [ ] Microbench covers vectorization and top-k/kNN isolated from HTTP.
+- [ ] If brute-force baseline p99 is above `50ms` under controlled local load,
+  progress records an ANN/structured-index or quantization task before further
+  HTTP micro-optimization.
 - [ ] A bounded `k6 run test/test.js` or documented smaller equivalent produces
   `test/results.json`.
 - [ ] Result inspection includes p99, HTTP errors, FP, FN, and final score.
@@ -63,4 +71,9 @@ in `progress.md`. No exceptions.
 - [ ] At least two API instances receive traffic through round-robin.
 - [ ] Total declared limits across services are no more than `1 CPU` and
   `350 MB`.
+- [ ] Observed RSS/cgroup memory stays below `350 MB` with two APIs and load
+  balancer during a smoke/load run.
+- [ ] Submission branch DoD is documented before branch work starts: only
+  runtime artifacts, `docker-compose.yml` at root, public `linux-amd64` images,
+  and no source tree required.
 - [ ] Compose run passes `GET /ready` and `k6 run test/smoke.js`.

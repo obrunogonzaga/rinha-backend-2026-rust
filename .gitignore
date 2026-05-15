@@ -8,7 +8,12 @@ data/
 # Local benchmark outputs.
 results.json
 
+# Local-only agent scratchpad and ephemeral worktrees.
+.claude/napkin.md
+.claude/worktrees/
 
+# Excalidraw sources live in the Obsidian vault, not the repo.
+memory/diagrams/
 
 # Added by cargo
 

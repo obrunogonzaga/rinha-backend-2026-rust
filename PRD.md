@@ -57,6 +57,8 @@ Este projeto tambem deve servir como base para uma serie de artigos em blog pess
 - Usar imagens publicas compativeis com `linux-amd64`.
 - Priorizar evitar HTTP errors, pois eles pesam mais que erro de classificacao.
 - Manter startup previsivel e observavel.
+- Evitar trabalho pesado no startup competitivo: artefatos derivados do dataset
+  devem ser gerados no build da imagem e apenas mapeados/validados no runtime.
 
 ## Metricas de sucesso
 
@@ -64,7 +66,8 @@ Este projeto tambem deve servir como base para uma serie de artigos em blog pess
 - `k6 run test/test.js` executa sem HTTP errors relevantes.
 - Taxa de falhas `(FP + FN + Err) / N` fica bem abaixo de 15%.
 - p99 cai progressivamente a cada iteracao.
-- Uso de memoria cabe no limite com duas APIs e load balancer.
+- Uso real de memoria cabe no limite com duas APIs e load balancer sob carga,
+  nao apenas nos limites declarados do Compose.
 - Decisoes e metricas importantes sao registradas no vault.
 
 ## Riscos
@@ -74,15 +77,17 @@ Este projeto tambem deve servir como base para uma serie de artigos em blog pess
 - Otimizacoes aproximadas podem aumentar FP/FN.
 - Duas instancias de API duplicam memoria se cada uma carregar todo o indice.
 - Imagem construida em Mac pode sair apenas `arm64` se nao houver cuidado.
+- Assumir compartilhamento de memoria por `mmap` sem medir pode mascarar estouro
+  de RSS/cgroup entre containers.
 
 ## Marcos
 
 1. API minima em Rust com smoke test.
 2. Vetorizacao oficial com testes unitarios.
 3. Preprocessador lendo `references.json.gz` em streaming.
-4. Baseline de busca exata e medicao.
-5. Formato binario compacto.
-6. Docker Compose com load balancer e duas APIs.
-7. Otimizacoes de busca e memoria.
-8. Branch `submission` com artefatos finais.
-
+4. Artefatos binarios gerados no build da imagem e carregados por `mmap`.
+5. Baseline de busca exata e medicao.
+6. Formato binario compacto.
+7. Docker Compose com load balancer e duas APIs.
+8. Otimizacoes de busca e memoria.
+9. Branch `submission` com artefatos finais.

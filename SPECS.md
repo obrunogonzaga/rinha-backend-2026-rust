@@ -3,11 +3,14 @@
 ## Stack inicial
 
 - Linguagem: Rust.
-- API HTTP: a definir, preferencia inicial por `axum` + `tokio`.
+- API HTTP: iniciar com `axum` + `tokio` para destravar o contrato HTTP.
+  Reavaliar `hyper` direto somente se benchmark ou RSS mostrar custo relevante.
 - Serializacao: `serde` / `serde_json`.
 - Compressao gzip: crate a definir durante o preprocessador.
 - Load balancer: `nginx` ou `haproxy`.
 - Teste de carga: k6 usando scripts oficiais em `test/`.
+- Allocator: manter o padrao inicialmente. Testar `mimalloc` antes de adotar;
+  nao assumir `jemallocator` sem medicao de throughput e memoria retida.
 
 ## Estrutura esperada
 
@@ -51,7 +54,14 @@ Resposta:
 }
 ```
 
-Erros de parsing devem ser tratados com resposta HTTP apropriada durante desenvolvimento. Para ambiente competitivo, avaliar fallback que evite HTTP 5xx.
+Contrato competitivo:
+
+- `POST /fraud-score` deve responder `HTTP 200` sempre que o processo estiver
+  vivo, inclusive em erro de parsing, timeout interno ou estado degradado
+  recuperavel.
+- Fallback padrao: `{"approved": true, "fraud_score": 0.0}`.
+- Falhas irrecuperaveis podem derrubar o processo para reinicio pelo runtime,
+  mas nao devem virar resposta `5xx` no caminho quente.
 
 ## Modelo de entrada
 
@@ -121,7 +131,11 @@ Regra:
 
 - Nao descompactar e versionar `references.json`.
 - Criar preprocessador que leia `.gz` em streaming.
-- Gerar artefatos em `data/`, ignorados pelo git.
+- Gerar artefatos em `data/`, ignorados pelo git, para desenvolvimento local.
+- No Docker, gerar os artefatos em stage builder e copiar somente os binarios
+  necessarios para a imagem final.
+- No runtime, carregar artefatos por `mmap` read-only e validar contagem,
+  dimensoes e versao antes de responder `ready`.
 - Preservar `-1` nos indices 5 e 6.
 
 Formato binario candidato:
@@ -137,7 +151,14 @@ Alternativas futuras:
 - quantizacao para `u16` ou `i16`;
 - bitset para labels;
 - particionamento por buckets;
-- mmap para reduzir copia em memoria.
+- HNSW, VP-tree ou outro indice aproximado/estruturado se o baseline medido
+  ficar acima do budget.
+
+Observacao de memoria:
+
+- `mmap` read-only reduz copias e pode permitir compartilhamento de paginas pelo
+  kernel, mas o efeito real em RSS/cgroup deve ser medido com duas APIs sob
+  carga. Nao tratar compartilhamento como garantido sem evidencia.
 
 ## Busca e decisao
 
@@ -147,6 +168,10 @@ Baseline:
 - top-5 menores distancias;
 - sem `sqrt`, pois ordenacao nao precisa da raiz;
 - sem alocacao por request no caminho quente.
+- microbench isolado para vetorizacao e top-k antes de otimizar HTTP.
+- se `p99` do baseline bruto ficar acima de `50ms` em carga local controlada,
+  abrir tarefa para indice estruturado ou quantizacao antes de investir em
+  micro-otimizacoes de HTTP.
 
 Decisao:
 
@@ -171,6 +196,12 @@ Restricoes:
 - rede `bridge`;
 - sem `privileged`;
 - imagens publicas `linux-amd64`.
+- build multi-stage: preprocessa referencias no builder; imagem final contem
+  binario da API, load balancer e artefatos binarios minimos.
+- base final `scratch`, `distroless` ou equivalente pequeno deve ser avaliada
+  depois que o binario estiver estavel.
+- comunicacao load balancer -> API inicia por TCP loopback/container network.
+  Unix socket fica como otimizacao medida, nao requisito V1.
 
 ## Testes
 
@@ -182,6 +213,12 @@ cargo test
 k6 run test/smoke.js
 k6 run test/test.js
 ```
+
+Benchmarks alvo:
+
+- microbench de vetorizacao;
+- microbench de top-k/kNN isolado;
+- medicao de RSS/cgroup com duas APIs e load balancer durante `k6`.
 
 Testes unitarios obrigatorios:
 
@@ -211,4 +248,15 @@ Nao versionar:
 - `results.json`;
 - dataset descompactado;
 - indices gerados.
+- `test/test-data.json` dentro da imagem final, salvo se algum script oficial
+  executado no container realmente precisar dele.
 
+## Submission
+
+- `main` mantem codigo-fonte, docs e scripts.
+- `submission` deve conter apenas os arquivos necessarios para execucao oficial,
+  com `docker-compose.yml` na raiz.
+- DoD da branch `submission`: imagem publica `linux-amd64`, Compose sobe em
+  rede `bridge`, somente o load balancer expoe `9999`, `GET /ready` e
+  `k6 run test/smoke.js` passam, e a medicao real de memoria fica abaixo de
+  `350MB` sob carga.
