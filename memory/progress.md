@@ -36,10 +36,17 @@ Main branch (PR `feat/slice-4-topology`):
   test/, agent/harness dirs, docs, *.md, .git/. Keeps Cargo.toml, Cargo.lock,
   .cargo/, src/, resources/references.json.gz (other resources/*.json files
   also excluded — they are not loaded at runtime, mcc_risk is a const table).
-- [ ] Slice 4.6 — Local validation: `docker buildx build --platform
-  linux/arm64 -t rinha-fraud-rust:local .`; `docker compose up --wait` with
-  override pointing to `rinha-fraud-rust:local`; `k6 run test/smoke.js`
-  passes; `k6 run test/test.js` completes without compose crash.
+- [x] Slice 4.6 — Local Tier 1 DoD validated on darwin/arm64. `docker buildx
+  build --platform linux/arm64 -t rinha-fraud-rust:local --load .` produced
+  a 116 MB image (87 MB data, 922 KB binary, ~25 MB distroless base). Local
+  compose (2× api 0.45/170MB + nginx 0.10/10MB, agreed env vars + nginx tune)
+  came up `--wait` healthy in 6 s. `k6 run test/smoke.js` 5/5 pass, p95 33 ms.
+  `k6 run test/test.js` ran 120 s ramp 1→900 rps, 15631 iterations completed,
+  **0 FP, 0 FN**, 9884 client-side timeouts (expected: 0.45 CPU × ARM emul
+  ≪ Mac Mini 2014). No OOM, no restarts. Post-load RSS api1=7 MiB,
+  api2=27 MiB (cgroup v2 + overlayfs apparently dedup'd mmap pages across
+  containers — bonus, not assumed by ADR-0001). Score (-6000) is meaningless
+  for Slice 4 DoD: Tier 1 is "compose holds together", not performance.
 - [x] Slice 4.7 — `bench/slice-3/...` already tracked (commit `994395a` in
   Slice 3 baseline session). Grilling decision (track, not ignore) formalized
   retroactively. No further action.

@@ -39,6 +39,8 @@ agent-md.toml.example
 # Exclude the other resource files explicitly.
 resources/mcc_risk.json
 resources/normalization.json
+resources/example-payloads.json
+resources/example-references.json
 
 # This Dockerfile itself
 Dockerfile
