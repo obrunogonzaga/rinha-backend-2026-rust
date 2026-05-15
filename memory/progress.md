@@ -8,49 +8,43 @@ changed but this file wasn't updated.
 
 ## In Progress
 
-- [x] Slice 3 — `src/index.rs`: mmap loader for `data/refs.i16.bin` +
-  `data/labels.bin`, quantize_query, brute-force top-K scan with stack
-  array (no per-request alloc), Decision { approved, fraud_score }.
-- [x] Slice 3 — wired `Index` into axum `AppState` (Arc<Index>) and
-  updated `/fraud-score` handler to return real decision.
-- [x] Slice 3 — 12 unit tests in `index::tests` (quantize match,
-  sq_dist, arg_max, score thresholds 0.0/0.4/0.6/1.0, top-5 selection
-  with extra refs, from_parts validation). 4 handler tests against
-  synthetic `Index`. Existing vector tests intact. 26/26 green.
-- [x] Slice 3 — live boot against full `data/` (3M refs):
-  - `GET /ready` → 200 `{"ready":true}`.
-  - Doc legit example → `{"approved":true,"fraud_score":0.0}` ✓.
-  - Doc fraud example → `{"approved":false,"fraud_score":1.0}` ✓.
-- [x] Slice 3 — `k6 run test/smoke.js` against live server:
-  - 5/5 iterations OK, 0% HTTP failures.
-  - `http_req_duration`: min=10.02 ms, p50=10.38 ms, p95=18.14 ms,
-    max=20.07 ms.
-  - Single VU, scalar Rust hot loop (compiler auto-vectorized i16
-    distance sum), darwin/arm64.
-  - Baseline before explicit SIMD / `wide` / chunking tweaks.
-- [ ] Open PR for Slice 3 (this branch -> main).
+_(empty — Slice 3 closed in PR #4. Next vertical slice is Slice 4.)_
+
+## Backlog (next up)
+
+- [ ] Slice 4 — multi-stage Dockerfile (`preprocess` runs in builder, runtime
+  ships binary + `data/*.bin`).
+- [ ] Slice 4 — `docker-compose.yml` with nginx + api1 + api2, limits ≤ 1.5
+  CPU and 350 MB total, bridge network, non-privileged.
+- [ ] Slice 4 — `k6 run test/test.js` against compose; record p99, FP/FN,
+  HTTP errors, RAM per container in `vault 09-baseline-medicoes.md`.
+- [ ] Slice 4 — push image to GHCR as `:v0.4.0`.
+- [ ] Slice 4 — submission branch updated to the GHCR tag.
 
 ## Completed (this session)
 
-- [x] PR #3 (Slice 2b) merged into `main` at `3724c46`.
-- [x] PR #2 (Slice 2a) merged into `main` at `b6e605f`.
-- [x] Slice 2a — `Payload` deserialization model in `src/vector.rs`.
-- [x] Slice 2a — pure `vectorize(&Payload) -> [f32; 14]` matching the 14
-  dimensions in `REGRAS_DE_DETECCAO.md`.
-- [x] Slice 2a — manual ISO-8601 UTC parser (`YYYY-MM-DDTHH:MM:SSZ`),
-  Sakamoto weekday (seg=0…dom=6), Hinnant `days_from_civil` for minute
-  diffs.
-- [x] Slice 2a — `mcc_risk` table (10 entries) + 0.5 default; constants
-  hardcoded, no JSON load at runtime.
-- [x] Slice 2a — 10 unit tests pass: legit + fraud doc fixtures
-  byte-equal at 4dp, `-1` sentinel at idx 5/6, clamp ceiling, mcc
-  unknown/known, set-membership for known_merchants, weekday for
-  known dates, parse_u32, with-last-tx minutes/km computation.
-- [x] Slice 2a — `POST /fraud-score` now deserializes the full payload
-  via serde and runs `vectorize` (response still placeholder per Slice 3
-  scope). Malformed payload returns `422`.
-- [x] Slice 2a — `cargo check/fmt/clippy/test` all green; `k6 run
-  test/smoke.js` 5/5, p95 220µs, 0 HTTP failures.
+- [x] PR #4 (Slice 3) merged into `main` at `63b9f34` — brute-force scan
+  over `i16` references via `memmap2::Mmap`, top-K on a stack array,
+  `arg_max` instead of a heap, i64 accumulator (i32 overflow risk
+  calculated). Doc examples (`tx-1329056812` legit, `tx-3330991687` fraud)
+  pass byte-for-byte. `k6 smoke` p95 = 18.14 ms on darwin/arm64; NOT the
+  official Linux 1-CPU number, that comes from Slice 4. 26/26 tests.
+  Details in vault `13-slice-3-busca.md`.
+- [x] PR #3 (Slice 2b) merged into `main` at `3724c46` — `preprocess` bin
+  reads `resources/references.json.gz`, quantizes to `i16` (scale 10000),
+  writes `data/refs.i16.bin` (84 MB) + `data/labels.bin` (3 MB) +
+  `data/metadata.json`. SHA-256 deterministic between runs. Wall clock
+  1.83 s, single thread. Labels are 66.69% legit / 33.31% fraud.
+  Details in vault `12-slice-2b-preprocess.md`.
+- [x] PR #2 (Slice 2a) merged into `main` at `b6e605f` —
+  `vectorize(&Payload) -> [f32; 14]`, manual ISO-8601 parser, Sakamoto
+  weekday, Hinnant `days_from_civil`, `mcc_risk` const table. 10 unit
+  tests cover the doc fixtures byte-for-byte at 4 dp.
+- [x] Vault sync after Slice 3 — new notes `12-slice-2b-preprocess.md`
+  and `13-slice-3-busca.md`; baseline + bitácora + editorial + index
+  updated; cover-post4 / cover-post4a Excalidraws + PNG exports in vault.
+  Post 4 (`rinha-backend-2026-quantizacao-i16`) live in production at
+  https://brunogonzaga.dev/artigos/rinha-backend-2026-quantizacao-i16/.
 
 ## Completed (previous sessions)
 
@@ -78,13 +72,6 @@ changed but this file wasn't updated.
 - [x] `cargo check --locked`, `cargo fmt --check`,
   `cargo clippy --locked --all-targets --all-features -- -D warnings`,
   `cargo test --locked` all pass.
-
-## Backlog (next up)
-
-- [ ] Slice 2b — preprocessor binary streaming `references.json.gz` to `i16`
-  binary.
-- [ ] Slice 3 — brute-force SIMD search.
-- [ ] Slice 4 — multi-stage Dockerfile, GHCR push, submission compose.
 
 ## Blocked
 

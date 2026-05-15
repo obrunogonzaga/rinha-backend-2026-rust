@@ -5,7 +5,14 @@ only — build full-stack features end-to-end, not horizontal layers.
 
 ## Current Phase
 
-Phase 2a: Vectorization — done. Next is Slice 2b (preprocessor binary).
+Phase 3: Reference search — done (PR #4 merged into `main` at `63b9f34`).
+Next is Slice 4 (multi-stage Dockerfile + compose + GHCR push).
+
+Completion stamps:
+- Slice 1 (HTTP baseline) — PR #1 merged at `f815dff`.
+- Slice 2a (vectorization) — PR #2 merged at `b6e605f`.
+- Slice 2b (preprocess) — PR #3 merged at `3724c46`.
+- Slice 3 (brute-force search) — PR #4 merged at `63b9f34`.
 
 ## Closed Decisions
 
