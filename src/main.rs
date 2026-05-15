@@ -1,7 +1,9 @@
+mod healthcheck;
 mod index;
 mod vector;
 
 use std::path::PathBuf;
+use std::process::ExitCode;
 use std::sync::Arc;
 
 use axum::{
@@ -57,25 +59,38 @@ fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
-#[tokio::main]
-async fn main() {
-    let data_dir: PathBuf = std::env::var("REFS_DATA_DIR")
-        .unwrap_or_else(|_| "data".to_string())
-        .into();
-    let index = Index::load(&data_dir).expect("load index");
-    eprintln!(
-        "index loaded: count={} dir={}",
-        index.count(),
-        data_dir.display()
-    );
-    let state = AppState {
-        index: Arc::new(index),
-    };
+fn main() -> ExitCode {
+    if std::env::args().any(|a| a == "--healthcheck") {
+        return healthcheck::run();
+    }
+    serve();
+    ExitCode::SUCCESS
+}
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:9999")
-        .await
-        .expect("bind 0.0.0.0:9999");
-    axum::serve(listener, router(state)).await.expect("serve");
+fn serve() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("build tokio runtime");
+    runtime.block_on(async {
+        let data_dir: PathBuf = std::env::var("REFS_DATA_DIR")
+            .unwrap_or_else(|_| "data".to_string())
+            .into();
+        let index = Index::load(&data_dir).expect("load index");
+        eprintln!(
+            "index loaded: count={} dir={}",
+            index.count(),
+            data_dir.display()
+        );
+        let state = AppState {
+            index: Arc::new(index),
+        };
+
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:9999")
+            .await
+            .expect("bind 0.0.0.0:9999");
+        axum::serve(listener, router(state)).await.expect("serve");
+    });
 }
 
 #[cfg(test)]

@@ -16,26 +16,40 @@ Slice 4 task order (locked after grilling session 2026-05-15). Each item is
 sized to one bounded execution pass; verify before ticking.
 
 Main branch (PR `feat/slice-4-topology`):
-- [ ] Slice 4.1 — Add `--healthcheck` mode to `src/main.rs` via
-  `std::net::TcpStream` raw HTTP GET to `127.0.0.1:9999/ready`; unit test for
-  exit-code mapping (200 → 0, anything else → 1).
-- [ ] Slice 4.2 — Create `.cargo/config.toml` with
-  `[target.x86_64-unknown-linux-gnu] rustflags = ["-C", "target-cpu=x86-64-v3"]`
-  (ADR-0002).
-- [ ] Slice 4.3 — Add `[profile.release]` to `Cargo.toml`: `lto = "fat"`,
-  `codegen-units = 1`, `panic = "abort"`, `strip = true`.
-- [ ] Slice 4.4 — Multi-stage `Dockerfile` (cargo-chef → cargo build release →
-  `cargo run --bin preprocess` → runtime distroless/cc-debian12:nonroot).
-  Bakes `data/*.bin` at `/data/`. Sets `HEALTHCHECK` invoking `/app/api
-  --healthcheck`. ADR-0001 cross-reference in comment.
-- [ ] Slice 4.5 — `.dockerignore` (excludes `target/`, `data/`, `bench/`,
-  `test/`, `.claude/`, `memory/`, `official/`, `docs/`, `*.md`).
-- [ ] Slice 4.6 — Local validation: `docker buildx build --platform
-  linux/arm64 -t rinha-fraud-rust:local .`; `docker compose up --wait` with
-  override pointing to `rinha-fraud-rust:local`; `k6 run test/smoke.js`
-  passes; `k6 run test/test.js` completes without compose crash.
-- [ ] Slice 4.7 — Commit `bench/slice-3/...` to repo (decision: track, not
-  ignore).
+- [x] Slice 4.1 — `src/healthcheck.rs` with `probe()` + `is_status_200()`;
+  `fn main() -> ExitCode` branches on `--healthcheck`. 9 unit/integration tests
+  (closed port → fail; 200/404/500 → expected exit code). Verified live:
+  exit=0 against running server, exit=1 after kill.
+- [x] Slice 4.2 — `.cargo/config.toml` created with `target-cpu=x86-64-v3`
+  scoped to `x86_64-unknown-linux-gnu`. Native arm64 `cargo check`/`test`
+  unaffected (35/35 still pass).
+- [x] Slice 4.3 — `[profile.release]` added (`lto=fat`, `codegen-units=1`,
+  `panic=abort`, `strip=true`). Release build 8 s → 17 s on M3 (LTO cost,
+  accepted). Binary: rinha_backend_2026 = 816 KB; preprocess = 409 KB.
+  Doc fixture `tx-1329056812` still returns `approved=true, fraud_score=0.0`.
+- [x] Slice 4.4 — `Dockerfile` written: stages chef → planner → builder →
+  preprocessor → runtime (distroless/cc-debian12:nonroot). `data/*.bin` baked
+  at `/data/`, `HEALTHCHECK` invokes `/app/api --healthcheck` every 2 s with
+  20 s start-period. ADR-0001/ADR-0002 referenced in header. **Live build
+  validation deferred to 4.6** (Docker daemon offline at commit time).
+- [x] Slice 4.5 — `.dockerignore` written. Excludes target/, data/, bench/,
+  test/, agent/harness dirs, docs, *.md, .git/. Keeps Cargo.toml, Cargo.lock,
+  .cargo/, src/, resources/references.json.gz (other resources/*.json files
+  also excluded — they are not loaded at runtime, mcc_risk is a const table).
+- [x] Slice 4.6 — Local Tier 1 DoD validated on darwin/arm64. `docker buildx
+  build --platform linux/arm64 -t rinha-fraud-rust:local --load .` produced
+  a 116 MB image (87 MB data, 922 KB binary, ~25 MB distroless base). Local
+  compose (2× api 0.45/170MB + nginx 0.10/10MB, agreed env vars + nginx tune)
+  came up `--wait` healthy in 6 s. `k6 run test/smoke.js` 5/5 pass, p95 33 ms.
+  `k6 run test/test.js` ran 120 s ramp 1→900 rps, 15631 iterations completed,
+  **0 FP, 0 FN**, 9884 client-side timeouts (expected: 0.45 CPU × ARM emul
+  ≪ Mac Mini 2014). No OOM, no restarts. Post-load RSS api1=7 MiB,
+  api2=27 MiB (cgroup v2 + overlayfs apparently dedup'd mmap pages across
+  containers — bonus, not assumed by ADR-0001). Score (-6000) is meaningless
+  for Slice 4 DoD: Tier 1 is "compose holds together", not performance.
+- [x] Slice 4.7 — `bench/slice-3/...` already tracked (commit `994395a` in
+  Slice 3 baseline session). Grilling decision (track, not ignore) formalized
+  retroactively. No further action.
 - [ ] Slice 4.8 — Open PR `feat/slice-4-topology`; merge after green CI.
 
 Post-merge, manual on dev box:

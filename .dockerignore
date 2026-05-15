@@ -1,0 +1,47 @@
+# Build outputs (regenerated inside the image)
+target/
+data/
+
+# Benchmarks and tests (host-side only)
+bench/
+test/
+
+# Agent and harness configuration
+.claude/
+.agent-md/
+.agents/
+.codex/
+.cursor/
+.windsurf/
+.githooks/
+.firecrawl/
+
+# Docs, planning, and meta (not consumed at build time)
+official/
+docs/
+memory/
+*.md
+agent-md.toml
+agent-md.toml.example
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+
+# Resources: only references.json.gz is consumed (preprocessor stage).
+# Exclude the other resource files explicitly.
+resources/mcc_risk.json
+resources/normalization.json
+resources/example-payloads.json
+resources/example-references.json
+
+# This Dockerfile itself
+Dockerfile
+.dockerignore
