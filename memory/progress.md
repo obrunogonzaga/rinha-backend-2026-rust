@@ -20,9 +20,9 @@ Main branch (PR `feat/slice-4-topology`):
   `fn main() -> ExitCode` branches on `--healthcheck`. 9 unit/integration tests
   (closed port → fail; 200/404/500 → expected exit code). Verified live:
   exit=0 against running server, exit=1 after kill.
-- [ ] Slice 4.2 — Create `.cargo/config.toml` with
-  `[target.x86_64-unknown-linux-gnu] rustflags = ["-C", "target-cpu=x86-64-v3"]`
-  (ADR-0002).
+- [x] Slice 4.2 — `.cargo/config.toml` created with `target-cpu=x86-64-v3`
+  scoped to `x86_64-unknown-linux-gnu`. Native arm64 `cargo check`/`test`
+  unaffected (35/35 still pass).
 - [ ] Slice 4.3 — Add `[profile.release]` to `Cargo.toml`: `lto = "fat"`,
   `codegen-units = 1`, `panic = "abort"`, `strip = true`.
 - [ ] Slice 4.4 — Multi-stage `Dockerfile` (cargo-chef → cargo build release →

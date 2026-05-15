@@ -1,0 +1,5 @@
+# See docs/adr/0002-target-cpu-x86-64-v3.md.
+# Scoped to x86_64-unknown-linux-gnu so native darwin/arm64 builds
+# (cargo test, dev iteration) are unaffected.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=x86-64-v3"]
