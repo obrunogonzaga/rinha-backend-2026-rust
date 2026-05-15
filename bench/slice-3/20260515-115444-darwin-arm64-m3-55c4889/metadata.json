@@ -1,0 +1,42 @@
+{
+  "slice": 3,
+  "timestamp_local": "2026-05-15T11:57:23-03:00",
+  "git": {
+    "sha": "55c4889972decda981ae7ae39ee0eb21740e938c",
+    "short": "55c4889",
+    "branch": "main"
+  },
+  "host": {
+    "kernel": "Darwin 24.6.0 arm64",
+    "cpu_brand": "Apple M3",
+    "ncpu": 8,
+    "mem_bytes": 17179869184,
+    "constraint": "unconstrained dev box (NOT 1 CPU / 350 MB official limits)"
+  },
+  "toolchain": {
+    "rustc": "rustc 1.88.0 (6b00bc388 2025-06-23)",
+    "k6": "k6 v1.1.0 (go1.24.4, darwin/arm64)",
+    "profile": "release",
+    "features": "default",
+    "allocator": "system (no mimalloc/jemalloc)"
+  },
+  "topology": {
+    "instances": 1,
+    "load_balancer": "none (direct localhost:9999)",
+    "container": "none (native binary)"
+  },
+  "workload": {
+    "script": "test/test.js",
+    "scenario": "ramping-arrival-rate 1->900 rps over 120s, preAllocatedVUs=100, maxVUs=250"
+  },
+  "process_rss_after_run_mb": 85.1,
+  "headline": {
+    "p99_ms": 1257.34,
+    "fp": 0,
+    "fn": 0,
+    "http_errors": 0,
+    "iterations": 43098,
+    "final_score": 2900.55,
+    "note": "detection perfect; p99 well above 50 ms target -> Slice 5+ ANN/quantization needed before official measurement"
+  }
+}

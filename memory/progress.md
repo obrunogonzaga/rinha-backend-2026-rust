@@ -23,6 +23,17 @@ _(empty — Slice 3 closed in PR #4. Next vertical slice is Slice 4.)_
 
 ## Completed (this session)
 
+- [x] Slice 3 dev-box baseline captured for future comparison —
+  `bench/slice-3/20260515-115444-darwin-arm64-m3-55c4889/` holds
+  `metadata.json`, `results.json`, `k6-summary.json`, `k6-stdout.log`.
+  Run: native release binary, single instance, no LB, no cgroup, k6
+  `test/test.js` ramp 1→900 rps over 120s. Headline: p99=1257.34 ms,
+  FP=0, FN=0, HTTP errors=0, TP=19170, TN=23928, dropped iterations
+  =10961, final_score=2900.55, process RSS=85 MB. NOT the official
+  Linux 1-CPU number (Slice 4) — it is a darwin/arm64 baseline so we
+  can quantify the algorithmic vs topology delta later. `bench/`
+  currently untracked; commit/ignore choice deferred to user.
+
 - [x] PR #4 (Slice 3) merged into `main` at `63b9f34` — brute-force scan
   over `i16` references via `memmap2::Mmap`, top-K on a stack array,
   `arg_max` instead of a heap, i64 accumulator (i32 overflow risk
