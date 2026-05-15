@@ -30,6 +30,15 @@ fn main() {
         eprintln!("preprocess failed: {e}");
         process::exit(1);
     }
+
+    // Skip destructor cleanup. When the preprocess binary is compiled with
+    // target-cpu=x86-64-v3 (ADR-0002) and run under QEMU's TCG emulation (the
+    // case when `docker buildx --platform linux/amd64` runs on a non-x86_64
+    // host), dropping the ~3 M Vec<Record> after output is already flushed has
+    // been observed to SIGSEGV in glibc free under AVX2-heavy memcpy emulation.
+    // The output files are written before this point, so skipping cleanup is
+    // safe; the process is short-lived and build-time only.
+    process::exit(0);
 }
 
 fn run(input: &Path, out_dir: &Path) -> Result<(), String> {
