@@ -95,3 +95,23 @@ Tier 2 — Measurement (closes the slice):
   measurement" annotation in the same vault note.
 - [ ] No minimum score gate. A poor score (cuts triggered) is a valid
   outcome — it scopes Slice 5+ work but does NOT reopen Slice 4.
+
+### Slice 5: Exact indexed search
+- [ ] Optimized search returns the same `approved` and `fraud_score` as
+  brute force for every request in `test/test-data.json`.
+- [ ] Optimized search returns the same `approved` and `fraud_score` as
+  brute force for a deterministic large sample generated from
+  reference-derived payloads or query vectors.
+- [ ] Internal search tests compare canonical top-5 neighbors, not only API
+  output.
+- [ ] Distance ties use canonical order: `(distance, original_index)`.
+- [ ] VP-Tree index is generated at Docker build time and loaded from baked
+  runtime artifacts.
+- [ ] Brute force remains available only through explicit validation mode
+  (`SEARCH_MODE=bruteforce`); optimized mode must not silently fall back.
+- [ ] Result inspection includes p99, HTTP errors, FP, FN, failure_rate, and
+  final_score versus the Slice 4 official baseline.
+- [ ] Publish `v0.5.0` for Engine only after local official-style
+  `k6 run test/test.js` shows no equivalence regressions (0 FP / 0 FN against
+  expected labels) and a large HTTP-error reduction versus Slice 4 baseline.
+  Local p99 is a sanity signal, not the final judge.

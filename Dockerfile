@@ -5,6 +5,8 @@
 #   runtime image, no shared volume.
 # - ADR-0002 (docs/adr/0002-target-cpu-x86-64-v3.md): linux-gnu amd64 builds
 #   are compiled with target-cpu=x86-64-v3 via .cargo/config.toml.
+# - ADR-0003 (docs/adr/0003-bake-search-index-in-image.md): VP-Tree search
+#   artifacts are generated at build time and baked into /data.
 # - cargo-chef caches the dependency build so iteration on src/ only
 #   recompiles our crate (~30 s under QEMU vs minutes from scratch).
 
@@ -45,6 +47,7 @@ LABEL org.opencontainers.image.licenses=MIT
 COPY --from=builder /app/target/release/rinha_backend_2026 /app/api
 COPY --from=preprocessor /out/data /data
 ENV REFS_DATA_DIR=/data
+ENV SEARCH_MODE=vptree
 EXPOSE 9999
 HEALTHCHECK --interval=2s --timeout=1s --start-period=20s --retries=5 \
     CMD ["/app/api", "--healthcheck"]

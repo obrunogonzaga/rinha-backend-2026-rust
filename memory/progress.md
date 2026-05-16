@@ -8,9 +8,9 @@ changed but this file wasn't updated.
 
 ## In Progress
 
-_(empty — Slice 4 closed. First official Engine measurement captured:
-final_score=-6000, p99=2002ms, failure_rate=89%, FP=0, FN=0. Next vertical
-slice is Slice 5: escape the floor — see bench/slice-4/.../ANALYSIS.md.)_
+- [ ] Slice 5 publish/Engine loop — local VP-Tree publish gate is green;
+  remote steps still require explicit approval: push branch/PR, merge, GHCR
+  `v0.5.0`, `submission` update, Rinha Engine preview.
 
 ## Backlog (next up)
 
@@ -72,6 +72,29 @@ Main branch (PR `feat/slice-4-topology`):
   `bench/slice-4/20260515-203342-engine-fb90b82/`. **Slice 4 CLOSED.**
 
 ## Completed (this session)
+
+- [x] Slice 5 grilling + issue #11 created — locked exact equivalence first,
+  same canonical top-5/`approved`/`fraud_score`, tie-break by
+  `(distance, original_index)`, squared Euclidean over `i16`, build-time baked
+  VP-Tree, brute force explicit validation mode, no silent fallback.
+- [x] Slice 5 VP-Tree implementation in `feat/slice-5-vptree` worktree —
+  `src/lib.rs` exposes shared modules; `src/index.rs` now supports
+  `SearchMode::{VpTree, BruteForce}`, canonical `Neighbor` top-5, in-repo
+  VP-Tree build/load/search, `u64` distances/thresholds, `vptree.nodes.bin` +
+  `vptree.metadata.json` checksum validation; `src/bin/preprocess.rs` writes
+  VP-Tree artifacts during build-time preprocess; `src/bin/validate_equivalence.rs`
+  validates all official test-data outputs plus top-5 sample.
+- [x] Slice 5 local validation — `cargo check --locked`, `cargo fmt --check`,
+  `cargo clippy --locked --all-targets --all-features -- -D warnings`,
+  `cargo test --locked`; `cargo run --release --bin preprocess` generated
+  refs/labels/metadata/VP-Tree in 3.2s; `validate_equivalence data
+  test/test-data.json 512` passed for 54,100 entries + 512 canonical top-5
+  comparisons; release server `k6 run test/smoke.js` passed 5/5 and
+  `k6 run test/test.js` produced p99=3.16ms, HTTP errors=0, FP=0, FN=0,
+  local final_score=5500.89. Docker arm64 image `rinha-fraud-rust:slice5-local`
+  rebuilt after the `u64`/20-byte-node format fix; container healthy and smoke passed.
+  Release process RSS after load: ~146.8 MiB. Artifacts:
+  `bench/slice-5/20260516-121352-local-vptree-u64-node20/`.
 
 - [x] Slice 3 dev-box baseline captured for future comparison —
   `bench/slice-3/20260515-115444-darwin-arm64-m3-55c4889/` holds
