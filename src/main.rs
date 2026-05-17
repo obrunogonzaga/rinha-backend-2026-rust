@@ -1,6 +1,4 @@
 mod healthcheck;
-mod index;
-mod vector;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -12,10 +10,11 @@ use axum::{
     http::StatusCode,
     routing::{get, post},
 };
+use rinha_backend_2026::{
+    index::{Index, SearchMode},
+    vector::{Payload, vectorize},
+};
 use serde::Serialize;
-
-use index::Index;
-use vector::{Payload, vectorize};
 
 #[derive(Clone)]
 struct AppState {
@@ -76,9 +75,10 @@ fn serve() {
         let data_dir: PathBuf = std::env::var("REFS_DATA_DIR")
             .unwrap_or_else(|_| "data".to_string())
             .into();
-        let index = Index::load(&data_dir).expect("load index");
+        let search_mode = SearchMode::from_env().expect("read search mode");
+        let index = Index::load(&data_dir, search_mode).expect("load index");
         eprintln!(
-            "index loaded: count={} dir={}",
+            "index loaded: count={} dir={} search={search_mode:?}",
             index.count(),
             data_dir.display()
         );
@@ -98,7 +98,7 @@ mod tests {
     use super::*;
     use axum::body::{Body, to_bytes};
     use axum::http::{Method, Request};
-    use index::{DIMS, LABEL_FRAUD, LABEL_LEGIT};
+    use rinha_backend_2026::index::{DIMS, LABEL_FRAUD, LABEL_LEGIT};
     use tower::ServiceExt;
 
     fn test_state(labels: Vec<u8>) -> AppState {

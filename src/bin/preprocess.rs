@@ -5,13 +5,10 @@ use std::process;
 use std::time::Instant;
 
 use flate2::read::GzDecoder;
+use rinha_backend_2026::index::{DIMS, LABEL_FRAUD, LABEL_LEGIT, SCALE, write_vptree_artifacts};
 use serde::Deserialize;
 
-const SCALE: f32 = 10_000.0;
 const SCALE_I32: i32 = 10_000;
-const DIMS: usize = 14;
-const LABEL_LEGIT: u8 = 0;
-const LABEL_FRAUD: u8 = 1;
 
 #[derive(Deserialize)]
 struct Record {
@@ -57,9 +54,10 @@ fn run(input: &Path, out_dir: &Path) -> Result<(), String> {
     let labels_path = out_dir.join("labels.bin");
     let meta_path = out_dir.join("metadata.json");
 
-    write_refs(&records, &refs_path)?;
+    let refs = write_refs(&records, &refs_path)?;
     write_labels(&records, &labels_path)?;
     write_metadata(count, &meta_path)?;
+    write_vptree_artifacts(&refs, out_dir)?;
 
     let elapsed_ms = start.elapsed().as_millis();
     eprintln!("preprocess: count={count} dims={DIMS} scale={SCALE_I32} elapsed_ms={elapsed_ms}");
@@ -70,16 +68,19 @@ fn run(input: &Path, out_dir: &Path) -> Result<(), String> {
     );
     eprintln!("  labels:   {} ({} bytes)", labels_path.display(), count);
     eprintln!("  metadata: {}", meta_path.display());
+    eprintln!("  vptree:   {}", out_dir.join("vptree.nodes.bin").display());
     Ok(())
 }
 
-fn write_refs(records: &[Record], path: &PathBuf) -> Result<(), String> {
+fn write_refs(records: &[Record], path: &PathBuf) -> Result<Box<[i16]>, String> {
     let file = File::create(path).map_err(|e| format!("create {}: {e}", path.display()))?;
     let mut w = BufWriter::with_capacity(1 << 20, file);
+    let mut refs = Vec::with_capacity(records.len() * DIMS);
     let mut buf = [0u8; DIMS * 2];
     for r in records {
         for (i, &x) in r.vector.iter().enumerate() {
             let q = quantize(x);
+            refs.push(q);
             let bytes = q.to_le_bytes();
             buf[i * 2] = bytes[0];
             buf[i * 2 + 1] = bytes[1];
@@ -87,7 +88,7 @@ fn write_refs(records: &[Record], path: &PathBuf) -> Result<(), String> {
         w.write_all(&buf).map_err(|e| format!("write refs: {e}"))?;
     }
     w.flush().map_err(|e| format!("flush refs: {e}"))?;
-    Ok(())
+    Ok(refs.into_boxed_slice())
 }
 
 fn write_labels(records: &[Record], path: &PathBuf) -> Result<(), String> {

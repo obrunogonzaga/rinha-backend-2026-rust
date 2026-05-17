@@ -1,0 +1,10 @@
+{
+  "checksum64": "635246948b295449",
+  "count": 3000000,
+  "dims": 14,
+  "distance": "squared_euclidean_i16",
+  "node_count": 3000000,
+  "node_size": 20,
+  "root": 0,
+  "tie_break": "distance_original_index"
+}

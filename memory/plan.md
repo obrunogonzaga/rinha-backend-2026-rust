@@ -26,6 +26,9 @@ Completion stamps:
 - Preprocessing: build-time inside Docker multi-stage. No JSON parser at
   runtime, no startup decompression.
 - Search baseline: brute-force SIMD. Upgrade path: VP-Tree → ANN (HNSW).
+- Slice 5 search mode: VP-Tree is the default target; brute force remains
+  available as an explicit validation mode (`SEARCH_MODE=bruteforce`). No
+  silent runtime fallback if the VP-Tree index fails to load.
 - Load balancer: nginx, round-robin only.
 - Image registry: GHCR at `ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.{slice}.{patch}`.
   Slice N publishes `v0.N.0`; in-slice patches bump the patch field. Tags before
@@ -94,13 +97,36 @@ Completion stamps:
     - `docker-compose.yml`: tag `v0.4.0`; budget split nginx `0.10 / 10MB`,
       api1/api2 `0.45 / 170MB` each; env vars per API:
       `TOKIO_WORKER_THREADS=1`, `MALLOC_ARENA_MAX=2`, `REFS_DATA_DIR=/data`.
-    - `nginx.conf`: `worker_processes 1`, `events { use epoll;
+  - `nginx.conf`: `worker_processes 1`, `events { use epoll;
       worker_connections 1024 }`, `access_log off`, `server_tokens off`,
       `upstream api { keepalive 32 }`.
 
+### Slice 5: Exact indexed search
+- Goal: escape the `final_score=-6000` floor without changing classifier
+  output. Preserve exact equivalence with the brute-force reference:
+  same canonical top-5, same `approved`, same `fraud_score`, tie-break by
+  `(distance, original_index)`. Distance remains squared Euclidean over the
+  current quantized `i16` vectors.
+- First candidate: VP-Tree built at Docker image build time and baked into
+  runtime (see [ADR-0003](../docs/adr/0003-bake-search-index-in-image.md)).
+- Implementation bias: small in-repo VP-Tree implementation, not a generic
+  dependency, so distance, tie-break, serialization, and hot path allocation
+  stay under our control.
+- First PR scope: VP-Tree only. Do not combine with `u8` quantization or
+  manual SIMD; those become follow-up PRs measured against the VP-Tree result
+  if needed.
+- Follow-up order if exact VP-Tree still misses the failure-rate cut:
+  manual SIMD over current `i16` distance first, `u8` quantization only after
+  that because it reopens the sentinel/equivalence question.
+- Runtime default: VP-Tree. Brute force stays available only as explicit
+  validation mode (`SEARCH_MODE=bruteforce`); no silent fallback.
+- Equivalence validation has two tiers: all `test/test-data.json` requests and
+  a deterministic large sample generated from reference-derived payloads or
+  query vectors.
+
 ## Deferred / Out of Scope
 
-- `u8` quantization, VP-Tree, ANN — only after measured Slice 4 baseline.
+- `u8` quantization and ANN — only after exact VP-Tree is measured.
 - Manual SIMD intrinsics (`std::arch::x86_64::_mm256_*`) — only if auto-vec
   proves insufficient after measurement.
 - CI workflow for image build/push — manual pushes are fine until Slice 5+.
