@@ -1,0 +1,12 @@
+{
+  "count": 3000000,
+  "dims": 14,
+  "endianness": "little",
+  "label_encoding": {
+    "fraud": 1,
+    "legit": 0
+  },
+  "quantization": "i16_round_half_away_from_zero",
+  "scale": 10000,
+  "stride_bytes": 28
+}
