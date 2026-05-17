@@ -443,13 +443,16 @@ impl VpTree {
             label: labels[node.point_index as usize],
         });
 
-        let threshold = (node.threshold_sq as f64).sqrt();
-        let d = (distance as f64).sqrt();
-        let tau = (top.tau_sq() as f64).sqrt();
-        let may_need_left = d - tau <= threshold + f64::EPSILON;
-        let may_need_right = d + tau >= threshold - f64::EPSILON;
+        let d2 = distance;
+        let th2 = node.threshold_sq;
+        let t2 = top.tau_sq();
+        // Euclidean triangle-inequality bounds, evaluated exactly in integer
+        // space: search left iff `d <= threshold + tau`, search right iff
+        // `threshold <= d + tau`.
+        let may_need_left = sqrt_le_sum(d2, th2, t2);
+        let may_need_right = sqrt_le_sum(th2, d2, t2);
 
-        if d < threshold {
+        if d2 < th2 {
             if may_need_left {
                 self.search_node(node.left, refs, labels, q, top);
             }
@@ -585,6 +588,27 @@ fn parse_checksum64(s: &str) -> Result<u64, String> {
     u64::from_str_radix(s, 16).map_err(|e| format!("parse checksum64 {s}: {e}"))
 }
 
+/// Exact integer test of `sqrt(a2) <= sqrt(b2) + sqrt(c2)` for the
+/// nonnegative reals whose squares are the given `u64` values. The VP-Tree
+/// pruning bound is therefore provably the true Euclidean bound, with no
+/// floating-point rounding. A `u64::MAX` argument (the tau sentinel before K
+/// neighbors are collected) makes the test trivially true, so both branches
+/// are visited until the candidate set is full.
+fn sqrt_le_sum(a2: u64, b2: u64, c2: u64) -> bool {
+    if a2 <= b2 {
+        return true; // a <= b <= b + c
+    }
+    // a > b, so `a <= b + c` <=> `a - b <= c` <=> `(a - b)^2 <= c^2`.
+    // (a - b)^2 = a2 + b2 - 2ab, so the test becomes `a2 + b2 - c2 <= 2ab`.
+    let lhs = a2 as i128 + b2 as i128 - c2 as i128;
+    if lhs <= 0 {
+        return true; // 2ab >= 0 >= lhs
+    }
+    // Both sides nonnegative: square again. `lhs <= 2ab` <=> `lhs^2 <= 4ab^2`.
+    let lhs = lhs as u128;
+    lhs * lhs <= 4u128 * a2 as u128 * b2 as u128
+}
+
 #[inline]
 fn sq_dist_14(q: &[i16], r: &[i16]) -> u64 {
     let mut acc: u64 = 0;
@@ -683,6 +707,37 @@ mod tests {
         let q = [-10000i16; DIMS];
         let r = [10000i16; DIMS];
         assert_eq!(sq_dist_14(&q, &r), 5_600_000_000);
+    }
+
+    #[test]
+    fn sqrt_le_sum_matches_reference_geometry() {
+        // Exhaustive small-integer check against f64 reference (well within
+        // f64 exactness for these magnitudes).
+        for a in 0u64..40 {
+            for b in 0u64..40 {
+                for c in 0u64..40 {
+                    let exact = sqrt_le_sum(a * a, b * b, c * c);
+                    let reference = (a as f64) <= (b as f64) + (c as f64) + 1e-9;
+                    assert_eq!(exact, reference, "a={a} b={b} c={c}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sqrt_le_sum_handles_tau_sentinel_and_boundary() {
+        // tau sentinel (u64::MAX) => both branch tests trivially true.
+        assert!(sqrt_le_sum(5_600_000_000, 1, u64::MAX));
+        assert!(sqrt_le_sum(1, 5_600_000_000, u64::MAX));
+        // Exact boundary: 5 == 3 + ... no integer c with sqrt(c)=2 except 4.
+        assert!(sqrt_le_sum(25, 9, 4)); // 5 <= 3 + 2
+        assert!(!sqrt_le_sum(25, 9, 3)); // 5 > 3 + sqrt(3)=4.73
+        // Non-perfect squares near the boundary.
+        assert!(sqrt_le_sum(2, 1, 1)); // sqrt2=1.414 <= 1+1
+        assert!(!sqrt_le_sum(10, 1, 1)); // sqrt10=3.16 > 2
+        // Full-range magnitudes do not overflow.
+        assert!(sqrt_le_sum(5_600_000_000, 5_600_000_000, 5_600_000_000));
+        assert!(!sqrt_le_sum(5_600_000_000, 1, 1));
     }
 
     #[test]

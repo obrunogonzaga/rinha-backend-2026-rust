@@ -96,6 +96,18 @@ Main branch (PR `feat/slice-4-topology`):
   Release process RSS after load: ~146.8 MiB. Artifacts:
   `bench/slice-5/20260516-121352-local-vptree-u64-node20/`.
 
+- [x] Slice 5 exactness hardening (`feat/slice-5-vptree-exact`, review
+  follow-up) — VP-Tree pruning moved from `f64::sqrt` (epsilon ≪ sqrt
+  rounding error → not provably exact) to integer-exact `sqrt_le_sum`
+  (`i128`/`u128`, no float on search path); `validate_equivalence` gained a
+  deterministic SplitMix64 differential fuzz over reference-derived
+  (exact/near/far-perturbed) + uniform-random queries; ADR-0003 documents
+  integer pruning, the `count < K` loud-fail behavior change, and the
+  validation layers. Verified on full 3,000,000-ref dataset: 51 unit tests
+  pass, clippy clean (`-D warnings`), `validate_equivalence data
+  test/test-data.json 512 5000` → 0 mismatches (54,100 official outputs +
+  512 strided top-5 + 5000 random differential).
+
 - [x] Slice 3 dev-box baseline captured for future comparison —
   `bench/slice-3/20260515-115444-darwin-arm64-m3-55c4889/` holds
   `metadata.json`, `results.json`, `k6-summary.json`, `k6-stdout.log`.
