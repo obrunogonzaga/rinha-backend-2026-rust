@@ -17,7 +17,7 @@ services:
           memory: "10MB"
 
   api1:
-    image: ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.4.0
+    image: ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.5.0
     environment:
       TOKIO_WORKER_THREADS: "1"
       MALLOC_ARENA_MAX: "2"
@@ -29,7 +29,7 @@ services:
           memory: "170MB"
 
   api2:
-    image: ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.4.0
+    image: ghcr.io/obrunogonzaga/rinha-fraud-rust:v0.5.0
     environment:
       TOKIO_WORKER_THREADS: "1"
       MALLOC_ARENA_MAX: "2"
