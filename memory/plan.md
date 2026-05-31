@@ -5,9 +5,13 @@ only — build full-stack features end-to-end, not horizontal layers.
 
 ## Current Phase
 
-Slice 4: Submission topology — done. First official Engine measurement
-captured (final_score=-6000, both cuts; FP=0, FN=0). Next is Slice 5:
-escape the -6000 floor (failure_rate < 15% first, then p99 < 2000 ms).
+Slice 5: Exact VP-Tree search — done. First positive official score:
+prévia #4880 run 1 (2026-05-17) `final_score=+3788.34` (p99=162.80ms,
+failure=0%, FP/FN=0) — VP-Tree escapes the floor. But run 2 (2026-05-23) on
+the SAME image returned `-6000` (p99=2002ms, failure=66.51%, FP/FN still 0).
+Same image/commit → variance is pure latency under Engine-host contention,
+not a code regression. Next is Slice 6: make the positive score robust to a
+contended host (failure < 15% and p99 < 2000 ms even under CPU pressure).
 Deadline for final submission: 2026-06-05T23:59:59-03:00.
 
 Completion stamps:
@@ -18,6 +22,10 @@ Completion stamps:
 - Slice 4 (submission topology) — PRs #7/#8/#9 merged; GHCR `v0.4.0`;
   submission `fb90b82`; Engine prévia issue #4586 → `final_score=-6000`.
   Artifacts: `bench/slice-4/20260515-203342-engine-fb90b82/`.
+- Slice 5 (exact VP-Tree) — PR #12 merged at `20d0ffc`; GHCR `v0.5.0`;
+  submission `0ecf07a`; Engine prévia issue #4880 → run 1 `+3788.34`
+  (first positive), run 2 `-6000` (host-contention variance, same image).
+  Artifacts: `bench/slice-5/ENGINE-ANALYSIS.md` + run1/run2 dirs.
 
 ## Closed Decisions
 
@@ -123,6 +131,46 @@ Completion stamps:
 - Equivalence validation has two tiers: all `test/test-data.json` requests and
   a deterministic large sample generated from reference-derived payloads or
   query vectors.
+
+### Slice 6: Robustness under host contention
+- Goal: make the positive score the FLOOR, not the ceiling. A contended host
+  (0.45 CPU disputed by a noisy neighbor) must still clear both cuts:
+  failure < 15% AND p99 < 2000 ms. Exactness is already settled in Slice 5
+  (0 FP/FN over the 3M dataset + differential fuzz); this slice is purely
+  about latency tail, not classifier output.
+- Root finding that motivates the slice: `fraud_score` handler calls
+  `state.index.score(&q)` SYNCHRONOUSLY inside the async task, and
+  `TOKIO_WORKER_THREADS=1` → one worker per API. The CPU-bound VP-Tree
+  traversal blocks the executor; under contention queries serialize, the
+  queue backs up, and p99 cascades into the k6 2001 ms timeout. Run 1 was
+  fast only because a clean host hid the head-of-line blocking.
+- **Phase 0 — reproduce locally (measurement-first).** Compose at 0.45 CPU
+  per API + `stress-ng` noisy neighbor saturating the rest; run
+  `k6 test.js`; confirm the p99 blowup reproduces off-Engine. This becomes
+  the slice's test bench. No code changes until repro exists.
+- **Phase 1 — exactness-preserving wins (no decision needed):**
+  1. Move the CPU-bound search off the async executor (`spawn_blocking` or a
+     dedicated pool sized to the CPU quota) so HTTP accept/enqueue is not
+     held hostage by one slow query.
+  2. Warm the page cache: `mlock`/pre-fault the `refs.i16.bin` +
+     `vptree.nodes.bin` mmaps at startup so cold-page faults under memory
+     pressure don't stall queries. Verify it fits the 350 MB total budget.
+  3. Node layout: co-locate the VP point inside `VpNode` (today fetched via
+     `ref_at` from a separate mmap → random access, cache miss per visit).
+     Measure node visits/query first.
+  4. Iterative search + explicit stack instead of recursion.
+  5. Manual SIMD on the 14-dim i16 distance ONLY if profiling shows it pays.
+- **Phase 2 — decision gate (needs owner approval; breaks "exact-first").**
+  If Phase 1 doesn't tame the worst-case tail, switch to BOUNDED-work-per-query:
+  ANN/HNSW with fixed `ef` (predictable per-query cost — the robustness lever
+  VP-Tree backtracking lacks) and/or `u8` quantization (half the memory
+  bandwidth). This reopens the locked Slice-5 exact-equivalence decision →
+  architectural call, not executed without sign-off. Criterion would shift
+  from byte-exact to recall ≥ target.
+- **Phase 3 — re-measure and prove robustness.** New Engine prévia, capture
+  artifacts, require MULTIPLE clean positive runs. One good run (#4880 run 1)
+  does not prove robustness.
+- GHCR `v0.6.0`; submission bump; tracked in GitHub issue (Slice 6).
 
 ## Deferred / Out of Scope
 

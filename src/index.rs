@@ -2,7 +2,7 @@ use std::fs::{self, File};
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use memmap2::Mmap;
+use memmap2::{Advice, Mmap};
 use serde::Deserialize;
 
 pub const DIMS: usize = 14;
@@ -19,6 +19,28 @@ const NONE: u32 = u32::MAX;
 const VPTREE_NODE_SIZE: usize = 20;
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+const PAGE_BYTES: usize = 4096;
+
+// Fault every page in now so requests never pay a major page fault on first
+// touch (cold first query measured ~942 ms vs ~1.4 ms warm). The access
+// pattern is random, so `Random` disables readahead that would otherwise waste
+// memory bandwidth fetching neighbour pages we never read — the scarce resource
+// under a contended host.
+fn warm_mmap(m: &Mmap) {
+    let _ = m.advise(Advice::Sequential);
+    prefault(m);
+    let _ = m.advise(Advice::Random);
+}
+
+fn prefault(bytes: &[u8]) {
+    let mut acc = 0u8;
+    let mut i = 0;
+    while i < bytes.len() {
+        acc = acc.wrapping_add(unsafe { std::ptr::read_volatile(bytes.as_ptr().add(i)) });
+        i += PAGE_BYTES;
+    }
+    std::hint::black_box(acc);
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchMode {
@@ -109,6 +131,8 @@ impl Index {
             .map_err(|e| format!("mmap {}: {e}", refs_path.display()))?;
         let labels = unsafe { Mmap::map(&labels_file) }
             .map_err(|e| format!("mmap {}: {e}", labels_path.display()))?;
+        warm_mmap(&refs);
+        warm_mmap(&labels);
 
         let refs_len = refs.len();
         let labels_len = labels.len();
@@ -377,6 +401,10 @@ impl VpTree {
             ));
         }
 
+        // checksum64 above already read every page sequentially (prefault);
+        // hint Random so any post-eviction refault fetches one page, not a
+        // wasted readahead window.
+        let _ = mmap.advise(Advice::Random);
         Ok(Self {
             nodes: VpNodeStorage::Mmapped(mmap),
         })
