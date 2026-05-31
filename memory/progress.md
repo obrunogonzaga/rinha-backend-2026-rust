@@ -8,9 +8,50 @@ changed but this file wasn't updated.
 
 ## In Progress
 
-- [ ] Slice 5 publish/Engine loop — local VP-Tree publish gate is green;
-  remote steps still require explicit approval: push branch/PR, merge, GHCR
-  `v0.5.0`, `submission` update, Rinha Engine preview.
+- [x] Slice 5 publish/Engine loop — PR #12 merged to `main` (`20d0ffc`);
+  GHCR `v0.5.0` published and public; `submission` bumped to `v0.5.0`
+  (`0ecf07a`). Prévia issue #4880 ran the Engine **twice on the same image**
+  with contradictory results: run 1 (2026-05-17) p99=162.80ms, failure=0%,
+  **final_score=+3788.34** (first positive score — VP-Tree escapes the floor);
+  run 2 (2026-05-23) p99=2002.16ms, failure=66.51%, **final_score=-6000**.
+  FP/FN=0/0 in both → variance is pure latency, almost certainly Engine-host
+  (Mac Mini 2014) contention, not our code. Artifacts +
+  `bench/slice-5/ENGINE-ANALYSIS.md`.
+
+## Slice 6 — robustness (issue #13)
+
+- [x] Phase 0 — local contention test bench (2026-05-30). Harness
+  `bench/slice-6/harness/`, findings `bench/slice-6/FASE0-FINDINGS.md`.
+  Three results that matter:
+  (a) **App is healthy** — k6 container → `nginx:9999` in-network, 0.45 CPU×2,
+  no contention: p99=21.22ms, 0 errors, **+4673.16**, 0 FP/FN. VP-Tree fine.
+  (b) **macOS `k6→localhost` is INVALID** — Docker Desktop port-forward choked
+  and faked **-6000** (2632/14.5k completed). Same image/instant: -6000 vs
+  +4673 by harness path alone. RULE: always run k6 as a container on the
+  compose net, never localhost on macOS.
+  (c) **Contention degrades p99 noisily** (21→283→152ms via stress-ng),
+  mirroring the Engine 162↔2002ms swing → Slice-5 run2 -6000 was external
+  host contention, not code.
+- [~] Phase 1 — exactness-preserving wins (in progress).
+  - WORKER_THREADS experiment: INCONCLUSIVE — within-WT variance ≥ between-WT;
+    macOS Docker bench can't reproduce the contention tail, can't gate
+    concurrency tuning. `bench/slice-6/20260530-fase1-worker-threads/`.
+    Decision (owner): pivot to provably-less-work changes, validate via Engine.
+  - [x] **mmap warming** (src/index.rs, uncommitted): `madvise(RANDOM)` on
+    refs/labels/vptree + pre-fault refs(84MB)+labels(3MB) at startup (vptree
+    already prefaulted by load-time checksum). VERIFIED: cold first-request
+    328ms→2ms (A/B), in-net load p99=10.98ms 0err +4959, 51 tests pass, fits
+    170MB (54k reqs no OOM). Artifacts `bench/slice-6/20260530-fase1-mmap-warming/`.
+    mlock rejected: official env non-privileged (no CAP_IPC_LOCK / low RLIMIT).
+  - [ ] NEXT: VpNode point co-location (fewer cache lines/traversal — node
+    format change → preprocess+load+search+node-size bump+re-validate
+    equivalence+ADR; own PR). Then iterative search.
+  - RULE: k6 must run as a container on the compose net (localhost on macOS
+    is an invalid path, fakes -6000).
+- [ ] Phase 2 (GATE, needs owner approval — breaks exact-first): ANN/HNSW
+  fixed-ef and/or u8 quantization, only if Phase 1 insufficient.
+- [ ] Phase 3 — re-measure via Engine prévia, require multiple clean positive
+  runs; GHCR v0.6.0 + submission bump.
 
 ## Backlog (next up)
 
